@@ -13,7 +13,6 @@ echo "[Generating opensearch passwords]"
 if [ -e "$PASSWORD_FILE" ]; then
     echo "$PASSWORD_FILE already exists, so not generating new passwords"
 else
-    mkdir -p $PASSWORD_DIR
     TEMPFILE=$(mktemp)
     egrep -v '^[[:blank:]]' "${OPENSEARCH_CONFIG_DIR}/internal_users.yml" | egrep "\:$" | egrep -v '^\_' | sed 's\:\\g' | while read user; do
         PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20)

@@ -2,6 +2,8 @@
 
 OPENSEARCH_CERTS_DIR=$PWD/certs
 
+mkdir -p ${OPENSEARCH_CERTS_DIR}
+
 # Generate Opensearch Certificates
 # Root CA
 openssl genrsa -out ${OPENSEARCH_CERTS_DIR}/root-ca-key.pem 2048
