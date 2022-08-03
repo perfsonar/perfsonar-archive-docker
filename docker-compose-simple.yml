@@ -20,6 +20,7 @@ services:
         hard: 65536
     volumes:
       - opensearch-data:/usr/share/opensearch/data
+      - opensearch-log:/var/log/opensearch
       - ./certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
       - ./certs/node.pem:/usr/share/opensearch/config/node.pem
       - ./certs/node-key.pem:/usr/share/opensearch/config/node-key.pem
@@ -52,6 +53,7 @@ services:
 
 volumes:
   opensearch-data:
+  opensearch-log:
 
 networks:
   opensearch-net:
