@@ -50,6 +50,20 @@ services:
       - ./configs/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.yml
     networks:
       - opensearch-net
+  logstash:
+    image: docker.elastic.co/logstash/logstash-oss:7.17.5-amd64
+    container_name: logstash
+    ports:
+      - 11283:11283
+    expose:
+      - "11283"
+    volumes:
+      - ./configs/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./configs/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      - ./pipeline/:/usr/share/logstash/pipeline/
+      - ./ruby/:/usr/lib/ruby/
+    networks:
+      - opensearch-net
 
 volumes:
   opensearch-data:
