@@ -50,7 +50,10 @@ services:
     networks:
       - opensearch-net
   logstash:
-    image: docker.elastic.co/logstash/logstash-oss:7.17.5-amd64
+    build:
+      context: ./
+      dockerfile: Dockerfile-logstash
+    image: logstash-oss:7.17.5-modified
     container_name: logstash
     ports:
       - 11283:11283
