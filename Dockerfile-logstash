@@ -1,0 +1,3 @@
+FROM docker.elastic.co/logstash/logstash-oss:7.17.5-amd64
+COPY logstash-output-opensearch.gem /usr/share/logstash/
+RUN /usr/share/logstash/bin/logstash-plugin install /usr/share/logstash/logstash-output-opensearch.gem
