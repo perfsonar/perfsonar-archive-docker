@@ -22,4 +22,3 @@ openssl x509 -req -in ${OPENSEARCH_CERTS_DIR}/node.csr -CA ${OPENSEARCH_CERTS_DI
 rm -f ${OPENSEARCH_CERTS_DIR}/admin-key-temp.pem ${OPENSEARCH_CERTS_DIR}/admin.csr ${OPENSEARCH_CERTS_DIR}/node-key-temp.pem ${OPENSEARCH_CERTS_DIR}/node.csr
 # Add to Java cacerts
 openssl x509 -outform der -in ${OPENSEARCH_CERTS_DIR}/node.pem -out ${OPENSEARCH_CERTS_DIR}/node.der
-#keytool -import -alias node -keystore ${CACERTS_FILE} -file ${OPENSEARCH_CONFIG_DIR}/node.der -storepass changeit -noprompt

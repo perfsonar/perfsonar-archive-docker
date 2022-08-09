@@ -7,5 +7,5 @@ LOGSTASH_USER=pscheduler_logstash
 
 # 5. Configure logstash to use pscheduler_logstash user/password
 echo "[Configure logstash]"
-LOGSTASH_PASS=$(grep "$LOGSTASH_USER " ${PASSWORD_FILE} | head -n 1 | awk '{print $2}')
+LOGSTASH_PASS=$(grep -m1 -e ^${LOGSTASH_USER} ${PASSWORD_FILE} | awk '{print $2}')
 sed -i 's/password => "PASSWORD"/password => "'$LOGSTASH_PASS'"/g' $LOGSTASH_OUTPUT

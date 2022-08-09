@@ -18,11 +18,7 @@ else
         PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20)
         echo "$user $PASS" >> $TEMPFILE
         HASHED_PASS=$(${OPENSEARCH_SECURITY_PLUGIN}/hash.sh -p $PASS | tail -n 1 | sed -e 's/[&\\/]/\\&/g')
-        if [[ $OS == *"CentOS"* ]]; then
-            sed -i -e '/^'$user'\:$/,/[^hash.*$]/s/\(hash\: \).*$/\1"'$HASHED_PASS'"/' "${OPENSEARCH_CONFIG_DIR}/internal_users.yml"
-        elif [[ $OS == *"Debian"* ]] || [[ $OS == *"Ubuntu"* ]]; then
-            sed -i -e '/^'$user'\:$/,/[^hash.*$]/      s/\(hash\: \).*$/\1"'$HASHED_PASS'"/' "${OPENSEARCH_CONFIG_DIR}/internal_users.yml"
-        fi
+        sed -i -e '/^'$user'\:$/,/[^hash.*$]/s/\(hash\: \).*$/\1"'$HASHED_PASS'"/' "${OPENSEARCH_CONFIG_DIR}/internal_users.yml"
     done
     mv $TEMPFILE $PASSWORD_FILE
     chmod 600 $PASSWORD_FILE
