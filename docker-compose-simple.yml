@@ -22,6 +22,7 @@ services:
       - opensearch-data:/usr/share/opensearch/data
       - ./certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
       - ./certs/node.pem:/usr/share/opensearch/config/node.pem
+      - ./certs/node.der:/usr/share/opensearch/config/node.der
       - ./certs/node-key.pem:/usr/share/opensearch/config/node-key.pem
       - ./certs/admin.pem:/usr/share/opensearch/config/admin.pem
       - ./certs/admin-key.pem:/usr/share/opensearch/config/admin-key.pem
