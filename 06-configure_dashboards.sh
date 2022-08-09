@@ -16,4 +16,4 @@ sed -i "s/opensearch.password: kibanaserver/opensearch.password: ${DASHBOARDS_PA
 #sed -i '/^server.host:.*/d' $OPENSEARCHDASH_CONFIG
 
 #echo "server.basePath: /opensearchdash" | tee -a $OPENSEARCHDASH_CONFIG > /dev/null
-echo "server.host: 0.0.0.0" | tee -a $OPENSEARCHDASH_CONFIG > /dev/null
+echo "server.host: 0.0.0.0" >> $OPENSEARCHDASH_CONFIG
