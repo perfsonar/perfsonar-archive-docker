@@ -15,6 +15,7 @@
 # Use a descriptive name for your cluster:
 #
 #cluster.name: my-application
+cluster.name: docker-cluster
 #
 # ------------------------------------ Node ------------------------------------
 #
@@ -53,6 +54,7 @@
 # Set the bind address to a specific IP (IPv4 or IPv6):
 #
 #network.host: 192.168.0.1
+network.host: 0.0.0.0
 #
 # Set a custom port for HTTP:
 #
