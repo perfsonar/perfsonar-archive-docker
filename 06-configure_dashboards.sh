@@ -11,9 +11,3 @@ echo "[Configure Opensearch-Dashboards]"
 DASHBOARDS_PASS=$(grep -m1 -e ^${OPENSEARCHDASH_USER} ${PASSWORD_FILE} | awk '{print $2}')
 
 sed -i "s/opensearch.password: kibanaserver/opensearch.password: ${DASHBOARDS_PASS}/g" $OPENSEARCHDASH_CONFIG
-# Clear and then set reverse proxy settings
-#sed -i '/^server.basePath:.*/d' $OPENSEARCHDASH_CONFIG
-#sed -i '/^server.host:.*/d' $OPENSEARCHDASH_CONFIG
-
-#echo "server.basePath: /opensearchdash" | tee -a $OPENSEARCHDASH_CONFIG > /dev/null
-echo "server.host: 0.0.0.0" >> $OPENSEARCHDASH_CONFIG

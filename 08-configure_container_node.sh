@@ -7,7 +7,7 @@ ADMIN_PASS=$(grep -m1 -e ^admin ${PASSWORD_FILE} | awk '{print $2}')
 
 docker exec opensearch-node keytool -import -alias node -keystore /etc/pki/java/cacerts -file /usr/share/opensearch/config/node.der -storepass changeit -noprompt
 
-bash plugins/opensearch-security/tools/securityadmin.sh -cd /usr/share/opensearch/config/opensearch-security -icl -nhnv -cacert /usr/share/opensearch/config/root-ca.pem -cert /usr/share/opensearch/config/admin.pem -key /usr/share/opensearch/config/admin-key.pem
+docker exec opensearch-node bash /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -cd /usr/share/opensearch/config/opensearch-security -icl -nhnv -cacert /usr/share/opensearch/config/root-ca.pem -cert /usr/share/opensearch/config/admin.pem -key /usr/share/opensearch/config/admin-key.pem
 
 echo "Waiting for opensearch API to start..."
 api_status=$(curl -s -o /dev/null -w "%{http_code}" -u admin:${ADMIN_PASS} -k https://localhost:9200/_cluster/health)

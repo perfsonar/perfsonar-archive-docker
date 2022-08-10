@@ -41,7 +41,4 @@ else
     echo '  hash: "'$HASHED_PASS'"' | tee -a $OPENSEARCH_CONFIG_DIR/internal_users.yml > /dev/null
     echo '  reserved: true' | tee -a $OPENSEARCH_CONFIG_DIR/internal_users.yml > /dev/null
     echo '  description: "pscheduler writer user"' | tee -a $OPENSEARCH_CONFIG_DIR/internal_users.yml > /dev/null
-
-    # Enable anonymous user
-    sed -i 's/anonymous_auth_enabled: false/anonymous_auth_enabled: true/g' $OPENSEARCH_CONFIG_DIR/config.yml
 fi
