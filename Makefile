@@ -1,3 +1,5 @@
+all: configure docker post-config
+
 configure:
 	bash ./01-generate_certificates.sh
 	bash ./02-generate_passwords.sh
@@ -8,6 +10,7 @@ configure:
 	bash ./07-configure_logstash.sh
 
 docker:
+	docker compose -f docker-compose-simple.yml build
 	docker compose -f docker-compose-simple.yml up -d
 
 post-config: docker
@@ -19,3 +22,6 @@ clean:
 	git checkout -- pipeline/99-outputs.conf
 	rm -f configs/auth_setup.out
 	rm -f certs/*
+
+docker-rm:
+	docker compose -f docker-compose-simple.yml down
