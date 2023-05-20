@@ -3,8 +3,8 @@
 OPENSEARCH_CONFIG_DIR=$PWD/configs
 
 # 3. Map users to roles
-echo "[Mapping pscheduler_logstash user to pscheduler_logstash role]"
-grep "# Pscheduler Logstash" $OPENSEARCH_CONFIG_DIR/roles_mapping.yml
+echo "[Mapping pscheduler users to pscheduler roles]"
+grep "pscheduler" $OPENSEARCH_CONFIG_DIR/roles_mapping.yml > /dev/null
 if [ $? -eq 0 ]; then
     echo "Map already created"
 else

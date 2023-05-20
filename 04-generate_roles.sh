@@ -3,8 +3,8 @@
 OPENSEARCH_CONFIG_DIR=$PWD/configs
 
 # 2. Create roles
-echo "[Creating pscheduler_logstash role]"
-grep "# Pscheduler Logstash" $OPENSEARCH_CONFIG_DIR/roles.yml
+echo "[Creating pscheduler roles]"
+grep "pscheduler" $OPENSEARCH_CONFIG_DIR/roles.yml > /dev/null
 if [ $? -eq 0 ]; then
     echo "Role already created"
 else
@@ -37,6 +37,7 @@ else
     echo "      - 'pscheduler*'" | tee -a $OPENSEARCH_CONFIG_DIR/roles.yml > /dev/null
     echo "      allowed_actions:" | tee -a $OPENSEARCH_CONFIG_DIR/roles.yml > /dev/null
     echo "      - 'read'" | tee -a $OPENSEARCH_CONFIG_DIR/roles.yml > /dev/null
+    echo "      - 'indices:admin/mappings/get'" | tee -a $OPENSEARCH_CONFIG_DIR/roles.yml > /dev/null
 
     # pscheduler_writer => write-only access to the pscheduler indices
     echo | tee -a $OPENSEARCH_CONFIG_DIR/roles.yml > /dev/null

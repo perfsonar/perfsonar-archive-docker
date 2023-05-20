@@ -6,8 +6,8 @@ OPENSEARCH_SECURITY_PLUGIN=$PWD/security_tool
 
 # new users: pscheduler_logstash, pscheduler_reader and pscheduler_writer
 # 1. Create users, generate passwords and save them to file 
-echo "[Creating pscheduler_logstash user]"
-grep "# Pscheduler Logstash" $OPENSEARCH_CONFIG_DIR/internal_users.yml
+echo "[Creating pscheduler users]"
+grep "pscheduler" $OPENSEARCH_SECURITY_CONFIG/internal_users.yml > /dev/null
 if [ $? -eq 0 ]; then
     echo "User already created"
 else

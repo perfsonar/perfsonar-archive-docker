@@ -1,12 +1,13 @@
 version: '3'
 services:
   opensearch-node:
-    image: opensearchproject/opensearch:2.1.0
+    image: opensearchproject/opensearch:2.7.0
     container_name: opensearch-node
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node
       - discovery.seed_hosts=opensearch-node
+      - discovery.type=single-node
       - cluster.initial_cluster_manager_nodes=opensearch-node
       - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
       - "OPENSEARCH_JAVA_OPTS=-Xms16g -Xmx16g" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
@@ -21,8 +22,8 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
       - ./certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
+      - ./certs/root-ca.der:/usr/share/opensearch/config/root-ca.der
       - ./certs/node.pem:/usr/share/opensearch/config/node.pem
-      - ./certs/node.der:/usr/share/opensearch/config/node.der
       - ./certs/node-key.pem:/usr/share/opensearch/config/node-key.pem
       - ./certs/admin.pem:/usr/share/opensearch/config/admin.pem
       - ./certs/admin-key.pem:/usr/share/opensearch/config/admin-key.pem
@@ -38,7 +39,7 @@ services:
     networks:
       - opensearch-net
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2.1.0
+    image: opensearchproject/opensearch-dashboards:2.7.0
     container_name: opensearch-dashboards
     ports:
       - 5601:5601

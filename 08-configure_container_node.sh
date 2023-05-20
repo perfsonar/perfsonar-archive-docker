@@ -5,7 +5,7 @@ PASSWORD_FILE=${OPENSEARCH_CONFIG_DIR}/auth_setup.out
 
 ADMIN_PASS=$(grep -m1 -e ^admin ${PASSWORD_FILE} | awk '{print $2}')
 
-docker exec opensearch-node keytool -import -alias node -keystore /etc/pki/java/cacerts -file /usr/share/opensearch/config/node.der -storepass changeit -noprompt
+docker exec opensearch-node keytool -import -alias node -keystore /etc/pki/java/cacerts -file /usr/share/opensearch/config/root-ca.der -storepass changeit -noprompt
 
 docker exec opensearch-node bash /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -cd /usr/share/opensearch/config/opensearch-security -icl -nhnv -cacert /usr/share/opensearch/config/root-ca.pem -cert /usr/share/opensearch/config/admin.pem -key /usr/share/opensearch/config/admin-key.pem
 
