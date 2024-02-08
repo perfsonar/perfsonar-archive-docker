@@ -11,7 +11,7 @@
 # Specifies the address to which the OpenSearch Dashboards server will bind. IP addresses and host names are both valid values.
 # The default is 'localhost', which usually means remote machines will not be able to connect.
 # To allow connections from remote users, set this parameter to a non-loopback address.
-server.host: 0.0.0.0
+# server.host: "localhost"
 
 # Enables you to specify a path to mount OpenSearch Dashboards at if you are running behind a proxy.
 # Use the `server.rewriteBasePath` setting to tell OpenSearch Dashboards if it should remove the basePath
@@ -173,6 +173,29 @@ server.host: 0.0.0.0
 # for your map rendering services.
 # map.showRegionBlockedWarning: false%
 
+# Set the value of this setting to false to suppress search usage telemetry
+# for reducing the load of OpenSearch cluster.
+# data.search.usageTelemetry.enabled: false
+
+# 2.4 renames 'wizard.enabled: false' to 'vis_builder.enabled: false'
+# Set the value of this setting to false to disable VisBuilder
+# functionality in Visualization.
+# vis_builder.enabled: false
+
+# 2.4 New Experimental Feature
+# Set the value of this setting to true to enable the experimental multiple data source
+# support feature. Use with caution.
+# data_source.enabled: false
+# Set the value of these settings to customize crypto materials to encryption saved credentials
+# in data sources.
+# data_source.encryption.wrappingKeyName: 'changeme'
+# data_source.encryption.wrappingKeyNamespace: 'changeme'
+# data_source.encryption.wrappingKey: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+# 2.6 New ML Commons Dashboards Experimental Feature
+# Set the value of this setting to true to enable the experimental ml commons dashboards
+# ml_commons_dashboards.enabled: false
+
 opensearch.hosts: [https://localhost:9200]
 opensearch.ssl.verificationMode: none
 opensearch.username: kibanaserver
@@ -184,3 +207,4 @@ opensearch_security.multitenancy.tenants.preferred: [Private, Global]
 opensearch_security.readonly_mode.roles: [kibana_read_only]
 # Use this setting if you are running opensearch-dashboards without https
 opensearch_security.cookie.secure: false
+server.host: '0.0.0.0'
