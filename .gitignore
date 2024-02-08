@@ -1,3 +1,5 @@
-certs/*
 .vscode
-configs/auth_setup.out
+logstash/
+archive/certs
+archive/configs
+archive/auth_setup.out
