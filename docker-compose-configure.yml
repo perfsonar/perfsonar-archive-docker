@@ -3,6 +3,7 @@ services:
   preconfiguration:
     image: perfsonar-archive-configuration
     build:
+      context: .
       dockerfile: Dockerfile-configuration
     container_name: preconfiguration
     working_dir: /home
@@ -14,6 +15,7 @@ services:
   postconfiguration:
     image: perfsonar-archive-configuration
     build:
+      context: .
       dockerfile: Dockerfile-configuration
     container_name: postconfiguration
     working_dir: /home

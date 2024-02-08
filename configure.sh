@@ -132,5 +132,6 @@ elif [ $1 = "post" ]; then
     bash ${BASE_DIR}/dashboards-scripts/dashboards_secure_pos.sh
 
 else
-    echo "Unknown command"
+    # Otherwise, just exec the command.
+    exec "$@"
 fi

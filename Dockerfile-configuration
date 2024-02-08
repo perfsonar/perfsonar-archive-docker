@@ -2,4 +2,4 @@ FROM openjdk:17-jdk-bullseye
 RUN apt-get update -y && apt-get install -y git wget maven python3 python3-yaml
 WORKDIR /home
 COPY configure.sh .
-ENTRYPOINT ["./configure.sh"]
+ENTRYPOINT [ "./configure.sh" ]
