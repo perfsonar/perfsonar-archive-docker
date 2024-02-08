@@ -1,0 +1,24 @@
+version: '3'
+services:
+  preconfiguration:
+    image: perfsonar-archive-configuration
+    build:
+      dockerfile: Dockerfile-configuration
+    container_name: preconfiguration
+    working_dir: /home
+    volumes:
+      - ./logstash:/home/logstash
+      - ./archive:/home/archive
+      - ./dashboards:/home/dashboards
+    command: [ "pre" ]
+  postconfiguration:
+    image: perfsonar-archive-configuration
+    build:
+      dockerfile: Dockerfile-configuration
+    container_name: postconfiguration
+    working_dir: /home
+    network_mode: "host"
+    volumes:
+      - ./logstash:/home/logstash
+      - ./archive:/home/archive
+    command: [ "post" ]
