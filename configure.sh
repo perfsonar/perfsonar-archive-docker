@@ -7,8 +7,12 @@ if [ -z "$1" ]
 fi
 
 PERFSONAR_VERSION="${PERFSONAR_VERSION:-5.1.0}"
-OPENSEARCH_VERSION="${OPENSEARCH_VERSION:-2.7}"
-OPENSEARCH_VERSION_LONG="${OPENSEARCH_VERSION_LONG:-2.7.0}"
+OPENSEARCH_VERSION="${OPENSEARCH_VERSION:-2.18}"
+OPENSEARCH_VERSION_LONG="${OPENSEARCH_VERSION_LONG:-2.18.0}"
+
+LOGSTASH_DIR=/usr/lib/perfsonar/logstash
+ARCHIVE_DIR=/usr/lib/perfsonar/archive
+DAHSBOARDS_DIR=/usr/lib/perfsonar/dashboards
 
 if [ $1 = "pre" ]; then
 
@@ -16,120 +20,74 @@ if [ $1 = "pre" ]; then
 
     git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/logstash.git logstash-git
 
-    BASE_DIR=logstash-git/perfsonar-logstash/perfsonar-logstash
+    LOGSTASH_MAKE_DIR=logstash-git/perfsonar-logstash/perfsonar-logstash
+    make -C $LOGSTASH_MAKE_DIR ROOTPATH=$LOGSTASH_DIR CONFIGPATH=$LOGSTASH_DIR SYSTEMDPATH=/etc/systemd/system install
 
-    mkdir -p /etc/logstash
-    echo "[]" > /etc/logstash/pipelines.yml 
-    python3 $BASE_DIR/scripts/update_logstash_pipeline_yml.py
-    python3 $BASE_DIR/scripts/enable_prometheus_pipeline.py
-
-    mkdir -p $BASE_DIR/java/maven
-    mvn -Dmaven.repo.local=$BASE_DIR/java/maven -f ${BASE_DIR}/java/pom.xml dependency:resolve
-
-    # COPYING FILES TO BINDED DIRECTORY
-    mkdir -p logstash/configs
-    mkdir -p logstash/pipeline
-    mkdir -p logstash/prometheus_pipeline
-    mkdir -p logstash/ruby
-    mkdir -p logstash/java
-
-    cp /etc/logstash/pipelines.yml logstash/configs/
-    cp -r $BASE_DIR/pipeline/* logstash/pipeline/
-    cp -r $BASE_DIR/prometheus_pipeline/* logstash/prometheus_pipeline/
-    cp -r $BASE_DIR/ruby/* logstash/ruby/
-    cp -r $BASE_DIR/java/* logstash/java/
+    python3 $LOGSTASH_DIR/scripts/update_logstash_pipeline_yml.py
+    python3 $LOGSTASH_DIR/scripts/enable_prometheus_pipeline.py
 
     ### ARCHIVE SETUP
 
     git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/archive.git archive-git
+    
+    ARCHIVE_MAKE_DIR=archive-git/perfsonar-archive/perfsonar-archive
+    make -C ${ARCHIVE_MAKE_DIR} PERFSONAR-ROOTPATH=${ARCHIVE_DIR} LOGSTASH-ROOTPATH=${LOGSTASH_DIR} HTTPD-CONFIGPATH=/etc/http SYSTEMD-CONFIGPATH=/etc/systemd/system BINPATH=/usr/bin install
 
-    BASE_DIR=archive-git/perfsonar-archive/perfsonar-archive
-
-    PASSWORD_DIR=/etc/perfsonar/opensearch
-    mkdir -p ${PASSWORD_DIR}
-    OPENSEARCH_CONFIG_DIR=/etc/opensearch
-    mkdir -p ${OPENSEARCH_CONFIG_DIR}
-    wget -O ${OPENSEARCH_CONFIG_DIR}/opensearch.yml https://raw.githubusercontent.com/opensearch-project/OpenSearch/${OPENSEARCH_VERSION}/distribution/docker/src/docker/config/opensearch.yml
-    touch ${OPENSEARCH_CONFIG_DIR}/jvm.options
-    mkdir -p /etc/perfsonar/logstash/
-
-    git clone --branch $OPENSEARCH_VERSION https://github.com/opensearch-project/security.git
-
-    OPENSEARCH_SECURITY_CONFIG=${OPENSEARCH_CONFIG_DIR}/opensearch-security
-    mkdir -p ${OPENSEARCH_SECURITY_CONFIG}
-
-    cp security/config/config.yml ${OPENSEARCH_SECURITY_CONFIG}/
-    cp security/config/internal_users.yml ${OPENSEARCH_SECURITY_CONFIG}/
-    cp security/config/roles.yml ${OPENSEARCH_SECURITY_CONFIG}/
-    cp security/config/roles_mapping.yml ${OPENSEARCH_SECURITY_CONFIG}/
-
-    OPENSEARCH_SECURITY_PLUGIN=/usr/share/opensearch/plugins/opensearch-security
-    mkdir -p $OPENSEARCH_SECURITY_PLUGIN
-    ln -s /usr/local/openjdk-17 /usr/share/opensearch/jdk
-    ln -s /home/archive/security_tool $OPENSEARCH_SECURITY_PLUGIN/tools
-
+    # setting up environment with defaults to run perfsonar config script
     LOGSTASH_SYSCONFIG=/etc/default/logstash
     touch ${LOGSTASH_SYSCONFIG}
+    ln -s /usr/local/openjdk-17 /usr/share/opensearch/jdk
 
-    # DO NOT RUN THESE COMMANDS
-    sed -r -i 's/^(\/usr\/share\/opensearch\/jdk\/bin\/keytool.*)$/#\1/' ${BASE_DIR}/opensearch-scripts/pselastic_secure_pre.sh
-    sed -r -i 's/^(htpasswd.*)$/#\1/' ${BASE_DIR}/opensearch-scripts/pselastic_secure_pre.sh
+    # do not run these commands
+    sed -i '/keytool -import/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
+    sed -i '/htpasswd -bc/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
+    sed -i '/chown/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
 
-    bash ${BASE_DIR}/opensearch-scripts/pselastic_secure_pre.sh
+    bash ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh install
 
-    # COPYING FILES TO BINDED DIRECTORY
-    mkdir -p archive/configs
-    mkdir -p archive/certs
+    sed -i 's|^opensearch_output_host=https://localhost:9200|opensearch_output_host=https://opensearch-node:9200|' ${LOGSTASH_SYSCONFIG}
+    PASSWORD_DIR=/etc/perfsonar/opensearch
+    cp ${PASSWORD_DIR}/auth_setup.out ${ARCHIVE_DIR}
+    cp ${LOGSTASH_SYSCONFIG} ${LOGSTASH_DIR}
 
-    cp $BASE_DIR/config/01-input-local_prometheus.conf logstash/prometheus_pipeline/
-    cp ${PASSWORD_DIR}/auth_setup.out archive/
-    cp ${OPENSEARCH_CONFIG_DIR}/*.pem archive/certs/
-    cp ${OPENSEARCH_CONFIG_DIR}/*.der archive/certs/
-    cp ${OPENSEARCH_CONFIG_DIR}/opensearch.yml archive/configs/
-    cp -r ${OPENSEARCH_SECURITY_CONFIG}/* archive/configs/
-    cp ${LOGSTASH_SYSCONFIG} logstash/.env
+    OPENSEARCH_CONFIG_DIR=/etc/opensearch
+    chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.pem
+    chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.der
+    chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.srl
 
-    # DASHBOARDS SETUP
+    # # DASHBOARDS SETUP
 
-    DASHBOARDS_PASS=$(grep -m1 -e ^kibanaserver ${PASSWORD_DIR}/auth_setup.out | awk '{print $2}')
-    sed -i "s/opensearch.password: kibanaserver/opensearch.password: ${DASHBOARDS_PASS}/g" dashboards/opensearch_dashboards.yml
+    DASHBOARDS_MAKE_DIR=archive-git/perfsonar-dashboards/perfsonar-dashboards
+    make -C ${DASHBOARDS_MAKE_DIR} DASHBOARDS-ROOTPATH=${DAHSBOARDS_DIR} HTTPD-CONFIGPATH=/etc/http install
+
+    # do not run this command
+    sed -i '/server.basePath/s/^/#/' ${DAHSBOARDS_DIR}/dashboards-scripts/dashboards_secure_pre.sh
+
+    bash ${DAHSBOARDS_DIR}/dashboards-scripts/dashboards_secure_pre.sh
 
 elif [ $1 = "post" ]; then
 
-    ### ARCHIVE SETUP
+    PASSWORD_DIR=/etc/perfsonar/opensearch
+    mkdir -p ${PASSWORD_DIR}
+    cp ${ARCHIVE_DIR}/auth_setup.out ${PASSWORD_DIR}
 
-    git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/archive.git archive-git
+    # do no run this command
+    sed -r -i '/securityadmin\.sh/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pos.sh
 
-    BASE_DIR=archive-git/perfsonar-archive/perfsonar-archive
+    # replace these lines
+    sed -i 's|localhost:9200|opensearch-node-setup:9200|g' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pos.sh
+    sed -i 's|opensearch_systemctl_status=.*|opensearch_systemctl_status=active|' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pos.sh
+    sed -i 's|logstash_systemctl_status=.*|logstash_systemctl_status=active|' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pos.sh
 
-    OPENSEARCH_CONFIG_DIR=/etc/opensearch
-    OPENSEARCH_SECURITY_CONFIG=${OPENSEARCH_CONFIG_DIR}/opensearch-security
-    mkdir -p ${OPENSEARCH_SECURITY_CONFIG}
-    ln -s archive/config/roles.yml ${OPENSEARCH_SECURITY_CONFIG}/roles.yml
-
-    mkdir -p /etc/perfsonar/opensearch
-    cp archive/auth_setup.out /etc/perfsonar/opensearch/
-
-    mkdir -p /etc/logstash
-    cp logstash/configs/pipelines.yml /etc/logstash/
-
-    mkdir -p /usr/lib/perfsonar/archive/config/ilm/
-    cp -r $BASE_DIR/config/ilm/* /usr/lib/perfsonar/archive/config/ilm/
-    cp $BASE_DIR/config/index_template* /usr/lib/perfsonar/archive/config/
-
-    # DO NOT RUN THIS COMMAND
-    sed -r -i 's/^(.*\/tools\/securityadmin\.sh.*)$/#\1/' ${BASE_DIR}/opensearch-scripts/pselastic_secure_pos.sh
-
-    bash ${BASE_DIR}/opensearch-scripts/pselastic_secure_pos.sh
+    bash ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pos.sh
 
     # DASHBOARDS SETUP
 
-    BASE_DIR=archive-git/perfsonar-dashboards/perfsonar-dashboards
+    #replace these lines
+    sed -i "s|^DASHBOARDS_VERSION=.*|DASHBOARDS_VERSION=${OPENSEARCH_VERSION_LONG}|" ${DAHSBOARDS_DIR}/dashboards-scripts/dashboards_secure_pos.sh
+    sed -i 's|localhost:5601|opensearch-dashboards-setup:5601|g' ${DAHSBOARDS_DIR}/dashboards-scripts/dashboards_secure_pos.sh
 
-    # DO NOT RUN THIS COMMAND
-    sed -r -i "s/^(DASHBOARDS_VERSION=).*$/\1${OPENSEARCH_VERSION_LONG}/" ${BASE_DIR}/dashboards-scripts/dashboards_secure_pos.sh
-
-    bash ${BASE_DIR}/dashboards-scripts/dashboards_secure_pos.sh
+    bash ${DAHSBOARDS_DIR}/dashboards-scripts/dashboards_secure_pos.sh
 
 else
     # Otherwise, just exec the command.
