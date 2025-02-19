@@ -1,5 +1,12 @@
 # perfsonar-archive-docker
 
+SE FEDORA/RHEL
+
+sudo chcon -Rt svirt_sandbox_file_t /path/to/volume
+
+docker run --rm -v archive-config:/usr/share/opensearch/config opensearchproject/opensearch:latest sleep 10
+
+
 Requirements
 
 - Docker

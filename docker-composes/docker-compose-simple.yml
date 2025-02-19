@@ -19,13 +19,15 @@ services:
         hard: 65536
     volumes:
       - opensearch-data:/usr/share/opensearch/data
-      - ./archive/certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
+      
+      - ./archive/certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem ## need to make sure i can mount this as volume instead (i.e. there are no other files in this path from the original image)
       - ./archive/certs/root-ca.der:/usr/share/opensearch/config/root-ca.der
       - ./archive/certs/node.pem:/usr/share/opensearch/config/node.pem
       - ./archive/certs/node-key.pem:/usr/share/opensearch/config/node-key.pem
       - ./archive/certs/admin.pem:/usr/share/opensearch/config/admin.pem
       - ./archive/certs/admin-key.pem:/usr/share/opensearch/config/admin-key.pem
       - ./archive/configs/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+
       - ./archive/configs/config.yml:/usr/share/opensearch/config/opensearch-security/config.yml
       - ./archive/configs/internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml
       - ./archive/configs/roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml
