@@ -23,6 +23,10 @@ if [ $1 = "pre" ]; then
     LOGSTASH_MAKE_DIR=logstash-git/perfsonar-logstash/perfsonar-logstash
     make -C $LOGSTASH_MAKE_DIR ROOTPATH=$LOGSTASH_DIR CONFIGPATH=$LOGSTASH_DIR SYSTEMDPATH=/etc/systemd/system install
 
+    mkdir -p /etc/logstash
+    touch /etc/logstash/pipelines.yml
+    echo [] > /etc/logstash/pipelines.yml
+
     python3 $LOGSTASH_DIR/scripts/update_logstash_pipeline_yml.py
     python3 $LOGSTASH_DIR/scripts/enable_prometheus_pipeline.py
 
@@ -33,15 +37,22 @@ if [ $1 = "pre" ]; then
     ARCHIVE_MAKE_DIR=archive-git/perfsonar-archive/perfsonar-archive
     make -C ${ARCHIVE_MAKE_DIR} PERFSONAR-ROOTPATH=${ARCHIVE_DIR} LOGSTASH-ROOTPATH=${LOGSTASH_DIR} HTTPD-CONFIGPATH=/etc/http SYSTEMD-CONFIGPATH=/etc/systemd/system BINPATH=/usr/bin install
 
+    #touch /etc/debian_version
+    ln -s /usr/share/opensearch/config /etc/opensearch
+    #touch /etc/default/logstash
+
+    #parei na configuracao de logstash do archive pre
+
     # setting up environment with defaults to run perfsonar config script
-    LOGSTASH_SYSCONFIG=/etc/default/logstash
+    #LOGSTASH_SYSCONFIG=/etc/default/logstash
+    LOGSTASH_SYSCONFIG=/etc/sysconfig/logstash
     touch ${LOGSTASH_SYSCONFIG}
-    ln -s /usr/local/openjdk-17 /usr/share/opensearch/jdk
+    #ln -s /usr/local/openjdk-17 /usr/share/opensearch/jdk
 
     # do not run these commands
-    sed -i '/keytool -import/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
+    #sed -i '/keytool -import/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
     sed -i '/htpasswd -bc/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
-    sed -i '/chown/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
+    #sed -i '/chown/s/^/#/' ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh
 
     bash ${ARCHIVE_DIR}/perfsonar-scripts/pselastic_secure_pre.sh install
 
@@ -50,10 +61,10 @@ if [ $1 = "pre" ]; then
     cp ${PASSWORD_DIR}/auth_setup.out ${ARCHIVE_DIR}
     cp ${LOGSTASH_SYSCONFIG} ${LOGSTASH_DIR}
 
-    OPENSEARCH_CONFIG_DIR=/etc/opensearch
-    chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.pem
-    chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.der
-    chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.srl
+    #OPENSEARCH_CONFIG_DIR=/etc/opensearch
+    #chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.pem
+    #chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.der
+    #chown --reference=${OPENSEARCH_CONFIG_DIR}/opensearch.yml ${OPENSEARCH_CONFIG_DIR}/*.srl
 
     # # DASHBOARDS SETUP
 

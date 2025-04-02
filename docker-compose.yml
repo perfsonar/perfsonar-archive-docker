@@ -3,26 +3,35 @@ services:
   ## Setup services
 
   opensearch-init:
-    image: "opensearchproject/opensearch:2.18.0"
-    profiles: [setup]
+    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION_LONG}"
+    #profiles: [setup]
     volumes:
-      - opensearch-config:/usr/share/opensearch/config
-    entrypoint: ["/bin/sh", "-c", "sleep 10"] # Give it time to initialize
+      - opensearch_config:/usr/share/opensearch/config
+      - opensearch_security:/usr/share/opensearch/plugins/opensearch-security
+    #entrypoint: ["/bin/sh", "-c", "sleep 10"] # Give it time to initialize
+    user: root
     restart: "no"
+    command: /bin/bash
+    stdin_open: true
+    tty: true
 
   logstash-init:
-    image: "opensearchproject/logstash-oss-with-opensearch-output-plugin:${LOGSTASH_VERSION}"
-    profiles: [setup]
+    image: "perfsonar-logstash-setup" # criar uma imagem para logstash com o output plugin 
+    build:
+      context: Dockerfiles/logstash
+      args:
+        LOGSTASH_VERSION: ${LOGSTASH_VERSION}
+    environment:
+      - PERFSONAR_VERSION=${PERFSONAR_VERSION}
+    #profiles: [setup]
     volumes:
-      - logstash-config:/usr/share/logstash/config/
-    entrypoint: ["/bin/sh", "-c", "sleep 10"] # Give it time to initialize
-    restart: "no"
+      - logstash_config:/usr/share/logstash/config/
 
   dashboards-init:
     image: "opensearchproject/opensearch-dashboards:${OPENSEARCH_VERSION_LONG}"
     profiles: [setup]
     volumes:
-      - dashboards-config:/usr/share/opensearch-dashboards/config/
+      - dashboards_config:/usr/share/opensearch-dashboards/config/
     entrypoint: ["/bin/sh", "-c", "sleep 10"] # Give it time to initialize
     restart: "no"
 
@@ -43,29 +52,30 @@ services:
       dashboards-init:
         condition: service_completed_successfully
     environment:
-      - PERFSONAR_VERSION=5.2.0
-      - OPENSEARCH_VERSION=2.18
-      - OPENSEARCH_VERSION_LONG=2.18.0
+      - PERFSONAR_VERSION=${PERFSONAR_VERSION}
+      - OPENSEARCH_VERSION=${OPENSEARCH_VERSION}
+      - OPENSEARCH_VERSION_LONG=${OPENSEARCH_VERSION_LONG}
     volumes:
-      - ./archive/security_tool:/usr/share/opensearch/plugins/opensearch-security/tools
-      - perfsonar-logstash:/usr/lib/perfsonar/logstash
-      - perfsonar-archive:/usr/lib/perfsonar/archive
-      - perfsonar-dashboards:/usr/lib/perfsonar/dashboards
-      - opensearch-config:/etc/opensearch
-      - logstash-config:/etc/logstash
-      - dashboards-config:/etc/opensearch-dashboards
-    command: [ "pre" ]
-    #command: /bin/bash
-    #stdin_open: true
-    #tty: true
+      #- ./archive/security_tool:/usr/share/opensearch/plugins/opensearch-security/tools
+      - perfsonar_logstash:/usr/lib/perfsonar/logstash
+      - perfsonar_archive:/usr/lib/perfsonar/archive
+      - perfsonar_dashboards:/usr/lib/perfsonar/dashboards
+      - opensearch_config:/etc/opensearch
+      - opensearch_security:/usr/share/opensearch/plugins/opensearch-security
+      - logstash_config:/etc/logstash
+      - dashboards_config:/etc/opensearch-dashboards
+    #command: [ "pre" ]
+    command: /bin/bash
+    stdin_open: true
+    tty: true
 
   opensearch-node-setup:
     image: "opensearchproject/opensearch:${OPENSEARCH_VERSION_LONG}"
     profiles: [setup]
     container_name: opensearch-node-setup
-    depends_on:
-      preconfiguration:
-        condition: service_completed_successfully
+    #depends_on:
+    #  preconfiguration:
+    #    condition: service_completed_successfully
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node
@@ -81,13 +91,16 @@ services:
         soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
         hard: 65536
     volumes:
-      - opensearch-data:/usr/share/opensearch/data
-      - opensearch-config:/usr/share/opensearch/config
+      - opensearch_data:/usr/share/opensearch/data
+      - opensearch_config:/usr/share/opensearch/config
     ports:
       - 9200:9200
       - 9600:9600 # required for Performance Analyzer
     networks:
       - opensearch-net
+    command: /bin/bash
+    stdin_open: true
+    tty: true
 
   securityadmin:
     image: "opensearchproject/opensearch:${OPENSEARCH_VERSION_LONG}"
@@ -96,7 +109,7 @@ services:
     depends_on:
       - opensearch-node-setup
     volumes:
-      - opensearch-config:/usr/share/opensearch/config
+      - opensearch_config:/usr/share/opensearch/config
     entrypoint: ["/bin/bash", "-c", "sleep 30 && /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -h opensearch-node-setup -cd /usr/share/opensearch/config/opensearch-security/ -icl -nhnv -cacert /usr/share/opensearch/config/root-ca.pem -cert /usr/share/opensearch/config/admin.pem -key /usr/share/opensearch/config/admin-key.pem"]
     networks:
       - opensearch-net
@@ -115,7 +128,7 @@ services:
     environment:
       OPENSEARCH_HOSTS: '["https://opensearch-node-setup:9200"]' # must be a string with no spaces when specified as an environment variable
     volumes:
-      - dashboards-config:/usr/share/opensearch-dashboards/config/
+      - dashboards_config:/usr/share/opensearch-dashboards/config/
     networks:
       - opensearch-net
 
@@ -136,13 +149,13 @@ services:
     networks:
       - opensearch-net
     environment:
-      - PERFSONAR_VERSION=5.2.0
-      - OPENSEARCH_VERSION=2.18
-      - OPENSEARCH_VERSION_LONG=2.18.0
+      - PERFSONAR_VERSION=${PERFSONAR_VERSION}
+      - OPENSEARCH_VERSION=${OPENSEARCH_VERSION}
+      - OPENSEARCH_VERSION_LONG=${OPENSEARCH_VERSION_LONG}
     volumes:
-      - perfsonar-archive:/usr/lib/perfsonar/archive
-      - perfsonar-dashboards:/usr/lib/perfsonar/dashboards
-      - logstash-config:/etc/logstash
+      - perfsonar_archive:/usr/lib/perfsonar/archive
+      - perfsonar_dashboards:/usr/lib/perfsonar/dashboards
+      - logstash_config:/etc/logstash
     command: [ "post" ]
 
   ## Run services
@@ -166,8 +179,8 @@ services:
         soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
         hard: 65536
     volumes:
-      - opensearch-data:/usr/share/opensearch/data
-      - opensearch-config:/usr/share/opensearch/config
+      - opensearch_data:/usr/share/opensearch/data
+      - opensearch_config:/usr/share/opensearch/config
     ports:
       - 9200:9200
       - 9600:9600 # required for Performance Analyzer
@@ -185,7 +198,7 @@ services:
     environment:
       OPENSEARCH_HOSTS: '["https://opensearch-node:9200"]' # must be a string with no spaces when specified as an environment variable
     volumes:
-      - dashboards-config:/usr/share/opensearch-dashboards/config/
+      - dashboards_config:/usr/share/opensearch-dashboards/config/
     networks:
       - opensearch-net
 
@@ -207,20 +220,21 @@ services:
         max-size: "10m"
         max-file: "10"
     volumes:
-      - logstash-config:/usr/share/logstash/config/
-      - perfsonar-logstash:/usr/lib/perfsonar/logstash
+      - logstash_config:/usr/share/logstash/config/
+      - perfsonar_logstash:/usr/lib/perfsonar/logstash
     networks:
       - opensearch-net
     entrypoint: ["/bin/bash", "-c", "source /usr/lib/perfsonar/logstash/logstash && exec /usr/local/bin/docker-entrypoint"]
 
 volumes:
-  perfsonar-logstash:
-  perfsonar-archive:
-  perfsonar-dashboards:
-  opensearch-config:
-  logstash-config:
-  dashboards-config:
-  opensearch-data:
+  perfsonar_logstash:
+  perfsonar_archive:
+  perfsonar_dashboards:
+  opensearch_config:
+  opensearch_security:
+  logstash_config:
+  dashboards_config:
+  opensearch_data:
 
 networks:
   opensearch-net:
