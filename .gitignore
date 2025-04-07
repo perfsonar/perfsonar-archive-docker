@@ -1,5 +1,1 @@
 .vscode
-logstash/
-archive/certs
-archive/configs
-archive/auth_setup.out
