@@ -5,7 +5,7 @@ set -e
 sed -i '/server.basePath/s/^/#/' /usr/lib/perfsonar/dashboards/dashboards-scripts/dashboards_secure_pre.sh
 
 echo "Waiting for auth file..."
-while [ ! -f //usr/lib/perfsonar/archive/auth_setup.out ]; do
+while [ ! -f /usr/lib/perfsonar/archive/auth_setup.out ]; do
   sleep 2
 done
 
