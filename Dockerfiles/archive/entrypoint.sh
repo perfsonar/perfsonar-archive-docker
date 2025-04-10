@@ -18,6 +18,7 @@ if [ ! -f /usr/share/opensearch/data/.initialized ]; then
 
     cp /etc/perfsonar/opensearch/auth_setup.out /usr/lib/perfsonar/archive/
     cp /etc/sysconfig/logstash /usr/lib/perfsonar/logstash/sysconfig
+    sed -i '/^\s*opensearch/ s/^\s*/export /' /usr/lib/perfsonar/logstash/sysconfig
     chown 1000:1000 /usr/lib/perfsonar/logstash/sysconfig
 fi
 

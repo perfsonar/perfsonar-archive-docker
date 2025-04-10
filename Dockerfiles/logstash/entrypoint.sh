@@ -10,5 +10,8 @@ while [ ! -f /usr/lib/perfsonar/logstash/sysconfig ]; do
   sleep 2
 done
 
+# Set up environment variables for Logstash
+source /usr/lib/perfsonar/logstash/sysconfig
+
 # Start Logstash
 exec /usr/local/bin/docker-entrypoint

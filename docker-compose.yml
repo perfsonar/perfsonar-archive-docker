@@ -83,6 +83,7 @@ services:
     environment:
       OPENSEARCH_VERSION: ${OPENSEARCH_VERSION}
       OPENSEARCH_HOSTS: '["https://opensearch-node:9200"]' # must be a string with no spaces when specified as an environment variable
+      SERVER_HOST: "0.0.0.0"
     volumes:
       - perfsonar_archive:/usr/lib/perfsonar/archive
       - perfsonar_dashboards:/usr/lib/perfsonar/dashboards
