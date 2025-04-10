@@ -57,6 +57,22 @@ docker compose up --build
 
 The first time you run, the perfsonar-downloader will populate the shared volumes. After that, the OpenSearch stack will start using those resources.
 
+## 📊 Accessing OpenSearch Dashboards
+
+Once the containers are up and running, the dashboard UI should be available at:
+
+➡️ **http://localhost:5601**
+
+Use this interface to explore data indexed by Logstash and visualize it through OpenSearch Dashboards.
+
+To log into the dashboard, you'll need the **admin** credentials generated during the archive setup process.
+
+🔐 You can retrieve the **admin** password by running the command below:
+
+```bash
+docker compose exec opensearch-node grep -w admin /usr/lib/perfsonar/archive/auth_setup.out
+```
+
 
 ## 🧼 Tear Down
 
