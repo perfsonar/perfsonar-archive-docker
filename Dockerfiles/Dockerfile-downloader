@@ -1,0 +1,34 @@
+FROM debian:latest
+
+# Install necessary dependencies
+RUN apt-get update && apt-get install -y \
+    git make maven \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the perfSONAR version (can be overridden at runtime)
+ARG PERFSONAR_VERSION=5.2.0
+ENV PERFSONAR_VERSION=$PERFSONAR_VERSION
+
+# Define directories
+ENV PS_LOGSTASH_DIR=/usr/lib/perfsonar/logstash
+ENV PS_ARCHIVE_DIR=/usr/lib/perfsonar/archive
+ENV PS_DASHBOARDS_DIR=/usr/lib/perfsonar/dashboards
+
+# Define directories as volumes
+VOLUME ["/usr/lib/perfsonar/logstash", "/usr/lib/perfsonar/dashboards", "/usr/lib/perfsonar/archive"]
+
+# Clone and build logstash
+RUN git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/logstash.git logstash-git && \
+    make -C logstash-git/perfsonar-logstash/perfsonar-logstash \
+        ROOTPATH=$PS_LOGSTASH_DIR CONFIGPATH=$PS_LOGSTASH_DIR SYSTEMDPATH=/etc/systemd/system install && \
+    chown -R 1000:1000 $PS_LOGSTASH_DIR
+
+# Clone and build archive and dashboards
+RUN git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/archive.git archive-git && \
+    make -C archive-git/perfsonar-archive/perfsonar-archive \
+        PERFSONAR-ROOTPATH=$PS_ARCHIVE_DIR LOGSTASH-ROOTPATH=$PS_LOGSTASH_DIR \
+        HTTPD-CONFIGPATH=/etc/http SYSTEMD-CONFIGPATH=/etc/systemd/system BINPATH=/usr/bin install && \
+    chown -R 1000:1000 $PS_ARCHIVE_DIR && \
+    make -C archive-git/perfsonar-dashboards/perfsonar-dashboards \
+        DASHBOARDS-ROOTPATH=$PS_DASHBOARDS_DIR HTTPD-CONFIGPATH=/etc/http install && \
+    chown -R 1000:1000 $PS_DASHBOARDS_DIR

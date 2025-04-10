@@ -1,22 +1,89 @@
-# perfsonar-archive-docker
+# perfSONAR Archive Docker
 
-Requirements
+This project defines a containerized deployment of the perfSONAR archive using Docker Compose. It includes:
 
-- Docker
-```shell
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-sudo systemctl start docker
-```
+- A one-time downloader for perfSONAR components
 
-Running
+- OpenSearch node for data storage and search
 
-```shell
+- Logstash for data processing
+
+- OpenSearch Dashboards for visualization
+
+## 📦  Services Overview
+
+### perfsonar-downloader
+
+This container is responsible for preparing the installation environment for other components. It runs only once, clones the perfSONAR Git repositories at the specified **PERFSONAR_VERSION** and makes them available for subsequent containers.
+
+### opensearch-node
+
+Main OpenSearch container, running with custom configuration and required security setup.
+
+### logstash
+
+Ingests and transforms perfSONAR metrics, sending data to OpenSearch.
+
+### opensearch-dashboards
+
+Web-based dashboard frontend for visualizing data in OpenSearch.
+
+### Custom Entrypoints and perfSONAR Scripts
+
+Each container (**opensearch-node**, **logstash**, **opensearch-dashboards**) is built with a custom image that includes a custom entrypoint script. On the first run, the entrypoint executes perfSONAR setup scripts stored in the shared volume.
+
+## 🚀 How to Deploy
+
+### 1. Clone the repository
+
+```bash
 git clone https://github.com/DanielNeto/perfsonar-archive-docker.git
 cd perfsonar-archive-docker
+```
 
-docker compose --profile setup up -d
+### 2. Set environment variables
 
-docker compose --profile run up -d
+```env
+OPENSEARCH_VERSION=2.18.0
+LOGSTASH_VERSION=8.11.0
+PERFSONAR_VERSION=5.2.0
+```
+
+### 3. Build and run the stack
+
+```bash
+docker compose up --build
+```
+
+The first time you run, the perfsonar-downloader will populate the shared volumes. After that, the OpenSearch stack will start using those resources.
+
+## 📊 Accessing OpenSearch Dashboards
+
+Once the containers are up and running, the dashboard UI should be available at:
+
+➡️ **http://localhost:5601**
+
+Use this interface to explore data indexed by Logstash and visualize it through OpenSearch Dashboards.
+
+To log into the dashboard, you'll need the **admin** credentials generated during the archive setup process.
+
+🔐 You can retrieve the **admin** password by running the command below:
+
+```bash
+docker compose exec opensearch-node grep -w admin /usr/lib/perfsonar/archive/auth_setup.out
+```
+
+
+## 🧼 Tear Down
+
+To stop and remove containers:
+
+```bash
+docker compose down
+```
+
+To remove all volumes (⚠️ includes data loss):
+
+```bash
+docker compose down -v
 ```
