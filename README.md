@@ -37,7 +37,7 @@ Each container (**opensearch-node**, **logstash**, **opensearch-dashboards**) is
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/DanielNeto/perfsonar-archive-docker.git
+git clone https://github.com/perfsonar/perfsonar-archive-docker
 cd perfsonar-archive-docker
 ```
 
