@@ -119,12 +119,21 @@ spec:
               {{- end }}
               {{- end }}
 
-              {{- $templateFiles := .Files.Glob "files/index_templates/*.json" }}
-              {{- if $templateFiles }}
-              {{- range $path, $bytes := $templateFiles }}
+              {{- $componentTemplateFiles := .Files.Glob "files/component_templates/*.json" }}
+              {{- if $componentTemplateFiles }}
+              {{- range $path, $bytes := $componentTemplateFiles }}
               {{- $name := base $path }}
-              - key: {{ printf "template_%s" $name }}
-                path: index_templates/{{ $name }} # Mounted into /config/index_templates/
+              - key: {{ printf "component_template_%s" $name }}
+                path: component_templates/{{ $name }} # Mounted into /config/component_templates/
+              {{- end }}
+              {{- end }}
+
+              {{- $indexTemplateFiles := .Files.Glob "files/index_templates/*.json" }}
+              {{- if $indexTemplateFiles }}
+              {{- range $path, $bytes := $indexTemplateFiles }}
+              {{- $name := base $path }}
+              - key: {{ printf "index_template_%s" $name }}
+                path: index_templates/{{ $name }}
               {{- end }}
               {{- end }}
         {{- if .Values.existingElasticsearch.caBundleSecretName }}

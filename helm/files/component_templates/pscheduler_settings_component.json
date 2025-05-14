@@ -1,0 +1,12 @@
+{
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "pscheduler_hot_warm_delete_policy"
+    }
+  },
+  "_meta": {
+    "description": "Default settings for pscheduler data streams"
+  }
+}

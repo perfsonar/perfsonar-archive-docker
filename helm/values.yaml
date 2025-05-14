@@ -65,13 +65,26 @@ ilmPolicies:
     policyName: "pscheduler_hot_warm_delete_policy" # This name is used in the API call AND in index template
     fileName: "pscheduler_hot_warm_delete_policy.json" # File in files/ilm_policies/
 
+# Configuration for Elasticsearch Component Templates
+# JSON files for Component Templates should be placed in files/component_templates/
+# These are building blocks for modern (composable) Index Templates.
+componentTemplates:
+  pscheduler_settings: # Key for Helm loop
+    enabled: true
+    templateName: "pscheduler_settings_component" # Name in Elasticsearch & filename (minus .json)
+    fileName: "pscheduler_settings_component.json"
+  pscheduler_mappings:
+    enabled: true
+    templateName: "pscheduler_mappings_component"
+    fileName: "pscheduler_mappings_component.json"
+
 # Configuration for Elasticsearch Index Templates
-# Use legacy templates (_template) or composable templates (_index_template)
+# For data streams, these should be composable index templates (_index_template)
 indexTemplates:
   pscheduler_default:
     enabled: true
-    templateName: "pscheduler_default_template" # This name is used in the API call
-    fileName: "pscheduler_default_template.json" # File in files/index_templates/
+    templateName: "pscheduler_default_template" # Name in Elasticsearch & filename (minus .json)
+    fileName: "pscheduler_default_template.json
 
 # Image and settings for the configuration job
 configJob:

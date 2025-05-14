@@ -1,0 +1,52 @@
+{
+  "template": {
+    "mappings": {
+      "_source": {},
+      "_meta": {},
+      "dynamic_templates": [
+        {
+          "ip_addresses": {
+            "mapping": {
+              "type": "ip"
+            },
+            "match_mapping_type": "string",
+            "match": "*ip",
+            "unmatch": "*.*ip*"
+          }
+        },
+        {
+          "histograms": {
+            "mapping": {
+              "type": "object",
+              "enabled": false
+            },
+            "match": "histogram"
+          }
+        },
+        {
+          "json_unparsed": {
+            "mapping": {
+              "type": "object",
+              "enabled": false
+            },
+            "match": "json"
+          }
+        },
+        {
+          "location": {
+            "path_match": "*.geo.location",
+            "mapping": {
+              "type": "geo_point"
+            }
+          }
+        }
+      ],
+      "properties": {
+        "@timestamp": { "type": "date" }
+      }
+    }
+  },
+  "_meta": {
+    "description": "Default mappings for pscheduler data streams"
+  }
+}

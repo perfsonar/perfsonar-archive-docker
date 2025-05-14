@@ -33,11 +33,20 @@ data:
   {{- end }}
   {{- end }}
 
-  {{- $templateFiles := .Files.Glob "files/index_templates/*.json" }}
-  {{- if $templateFiles }}
-  {{- range $path, $bytes := $templateFiles }}
+  {{- $componentTemplateFiles := .Files.Glob "files/component_templates/*.json" }}
+  {{- if $componentTemplateFiles }}
+  {{- range $path, $bytes := $componentTemplateFiles }}
   {{- $name := base $path }}
-  {{ printf "template_%s" $name }}: |-
+  {{ printf "component_template_%s" $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+  {{- $indexTemplateFiles := .Files.Glob "files/index_templates/*.json" }}
+  {{- if $indexTemplateFiles }}
+  {{- range $path, $bytes := $indexTemplateFiles }}
+  {{- $name := base $path }}
+  {{ printf "index_template_%s" $name }}: |-
 {{ .Files.Get $path | indent 4 }}
   {{- end }}
   {{- end }}
@@ -166,52 +175,42 @@ data:
     {{- end }}
     {{- end }}
 
-    # Apply Index Templates (Legacy Templates)
-    echo "Applying Index Templates..."
-    {{- range $templateKey, $templateConfig := .Values.indexTemplates }}
-    {{- if $templateConfig.enabled }}
-    if [ -f "/config/index_templates/{{ $templateConfig.fileName }}" ]; then
-      echo "Applying Index Template: {{ $templateConfig.templateName }} from file {{ $templateConfig.fileName }}"
-      # Using _template for legacy index templates.
-      # For composable index templates (ES 7.8+), use _index_template/ and ensure template is in composable format.
-      curl $CURL_OPTS -XPUT "${ES_URL}/_template/{{ $templateConfig.templateName }}" \
+    # Apply Component Templates
+    echo "Applying Component Templates..."
+    {{- range $ctKey, $ctConfig := .Values.componentTemplates }}
+    {{- if $ctConfig.enabled }}
+    if [ -f "/config/component_templates/{{ $ctConfig.fileName }}" ]; then
+      echo "Applying Component Template: {{ $ctConfig.templateName }} from file {{ $ctConfig.fileName }}"
+      curl $CURL_OPTS -XPUT "${ES_URL}/_component_template/{{ $ctConfig.templateName }}" \
         -H "Content-Type: application/json" \
-        --data-binary "@/config/index_templates/{{ $templateConfig.fileName }}"
+        --data-binary "@/config/component_templates/{{ $ctConfig.fileName }}"
       echo
     else
-      echo "Index template file /config/index_templates/{{ $templateConfig.fileName }} not found. Skipping {{ $templateConfig.templateName }}."
+      echo "Component template file /config/component_templates/{{ $ctConfig.fileName }} not found. Skipping {{ $ctConfig.templateName }}."
     fi
     {{- else }}
-    echo "Skipping Index Template {{ $templateConfig.templateName }} as it is disabled in values.yaml."
+    echo "Skipping Component Template {{ $ctConfig.templateName }} as it is disabled in values.yaml."
     {{- end }}
     {{- end }}
 
-    # Optional: Bootstrap first index for rollover if using legacy templates and ILM rollover
-    # This is a common pattern if Logstash/clients are not aware of creating the write alias.
-    # Needs to be idempotent.
-    echo "Checking for pscheduler initial index for ILM rollover..."
-    BOOTSTRAP_INDEX_NAME="pscheduler-000001"
-    WRITE_ALIAS="pscheduler"
-    if ! curl $CURL_OPTS -I -XGET "${ES_URL}/${BOOTSTRAP_INDEX_NAME}" > /dev/null 2>&1; then
-      echo "Initial index ${BOOTSTRAP_INDEX_NAME} not found. Attempting to create with write alias ${WRITE_ALIAS}..."
-      # Ensure the template is applied first by ES before creating this index
-      sleep 5 # Give a moment for template changes to propagate if any race condition
-      curl $CURL_OPTS -XPUT "${ES_URL}/${BOOTSTRAP_INDEX_NAME}" -H "Content-Type: application/json" -d"
-      {
-        \"aliases\": {
-          \"${WRITE_ALIAS}\": {
-            \"is_write_index\": true
-          }
-        }
-      }"
-      echo "Bootstrap index ${BOOTSTRAP_INDEX_NAME} created with write alias ${WRITE_ALIAS}."
+    # Apply Composable Index Templates (for Data Streams)
+    echo "Applying Composable Index Templates..."
+    {{- range $itKey, $itConfig := .Values.indexTemplates }}
+    {{- if $itConfig.enabled }}
+    if [ -f "/config/index_templates/{{ $itConfig.fileName }}" ]; then
+      echo "Applying Composable Index Template: {{ $itConfig.templateName }} from file {{ $itConfig.fileName }}"
+      curl $CURL_OPTS -XPUT "${ES_URL}/_index_template/{{ $itConfig.templateName }}" \
+        -H "Content-Type: application/json" \
+        --data-binary "@/config/index_templates/{{ $itConfig.fileName }}"
+      echo
     else
-      echo "Initial index ${BOOTSTRAP_INDEX_NAME} already exists."
-      # Optionally verify write alias is set if index exists but alias might be missing/wrong
-      # ALIAS_INFO=$(curl $CURL_OPTS -XGET "${ES_URL}/${BOOTSTRAP_INDEX_NAME}/_alias/${WRITE_ALIAS}" || true)
-      # if ! echo "$ALIAS_INFO" | grep -q "\"is_write_index\":true"; then
-      #   echo "Warning: ${BOOTSTRAP_INDEX_NAME} exists, but ${WRITE_ALIAS} is not its write alias or alias is missing. Manual check advised."
-      # fi
+      echo "Index template file /config/index_templates/{{ $itConfig.fileName }} not found. Skipping {{ $itConfig.templateName }}."
     fi
+    {{- else }}
+    echo "Skipping Index Template {{ $itConfig.templateName }} as it is disabled in values.yaml."
+    {{- end }}
+    {{- end }}
+
+    # Bootstrap index logic for legacy templates is REMOVED as data streams handle this.
 
     echo "Elasticsearch configuration script finished successfully."
