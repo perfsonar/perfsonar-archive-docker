@@ -1,0 +1,58 @@
+{
+  "index_patterns": [
+    "pscheduler_*"
+  ],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "pscheduler_hot_warm_delete_policy"
+    },
+    "aliases": {
+      "pscheduler": {}
+    },
+    "mappings": {
+      "_source": {},
+      "_meta": {},
+      "dynamic_templates": [
+        {
+          "ip_addresses": {
+            "mapping": {
+              "type": "ip"
+            },
+            "match_mapping_type": "string",
+            "match": "*ip",
+            "unmatch": "*.*ip*"
+          }
+        },
+        {
+          "histograms": {
+            "mapping": {
+              "type": "object",
+              "enabled": false
+            },
+            "match": "histogram"
+          }
+        },
+        {
+          "json_unparsed": {
+            "mapping": {
+              "type": "object",
+              "enabled": false
+            },
+            "match": "json"
+          }
+        },
+        {
+          "location": {
+            "path_match": "*.geo.location",
+            "mapping": {
+              "type": "geo_point"
+            }
+          }
+        }
+      ],
+      "properties": {}
+    }
+  }
+}

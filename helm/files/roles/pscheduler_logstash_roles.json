@@ -1,0 +1,25 @@
+{
+  "cluster": [
+    "cluster_monitor",
+    "cluster_manage_index_templates"
+  ],
+  "indices": [
+    {
+      "names": [
+        "pscheduler_*",
+        "prometheus_*"
+      ],
+      "privileges": [
+        "write",
+        "read",
+        "delete",
+        "create_index",
+        "manage",
+        "indices:admin/template/delete",
+        "indices:admin/template/get",
+        "indices:admin/template/put"
+      ],
+      "allow_restricted_indices": false
+    }
+  ]
+}

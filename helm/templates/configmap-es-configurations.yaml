@@ -15,6 +15,15 @@ data:
   {{- end }}
   {{- end }}
 
+  {{- $roleMappingFiles := .Files.Glob "files/role_mappings/*.json" }}
+  {{- if $roleMappingFiles }}
+  {{- range $path, $bytes := $roleMappingFiles }}
+  {{- $name := base $path }}
+  {{ printf "role_mapping_%s" $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
   {{- $ilmFiles := .Files.Glob "files/ilm_policies/*.json" }}
   {{- if $ilmFiles }}
   {{- range $path, $bytes := $ilmFiles }}
@@ -57,7 +66,6 @@ data:
     fi
 
     echo "Waiting for Elasticsearch to be available at ${ES_URL}..."
-    # Simple wait loop (max 60 seconds)
     RETRY_COUNT=0
     MAX_RETRIES=12
     RETRY_INTERVAL=5
@@ -74,9 +82,10 @@ data:
 
     # Apply Roles
     echo "Applying Elasticsearch roles..."
-    for role_file_path in /config/roles/*.json; do
+    # Sort files to ensure consistent application order if dependencies exist (though not typical for roles)
+    find /config/roles -name '*.json' -print0 | sort -z | while IFS= read -r -d $'\0' role_file_path; do
       if [ -f "$role_file_path" ]; then
-        role_name=$(basename "$role_file_path" .json)
+        role_name=$(basename "$role_file_path" .json) # e.g., pscheduler_logstash_role
         echo "Applying role: ${role_name}"
         curl $CURL_OPTS -XPUT "${ES_URL}/_security/role/${role_name}" -H "Content-Type: application/json" --data-binary "@${role_file_path}"
         echo # Newline for better log readability
@@ -85,42 +94,66 @@ data:
 
     # Create/Update Users
     echo "Creating/Updating Elasticsearch users..."
-    {{- range $userName, $userConfig := .Values.perfsonarUsers }}
-    ES_USER_{{ $userName | upper }}_USERNAME="{{ $userConfig.username }}"
-    ES_USER_{{ $userName | upper }}_ROLE="{{ $userConfig.roleName }}"
+    {{- range $userNameKey, $userConfig := .Values.perfsonarUsers }}
+    {{- if $userConfig.username }} # Ensure username is defined
+    ES_USER_{{ $userNameKey | upper }}_USERNAME="{{ $userConfig.username }}"
+    ES_USER_{{ $userNameKey | upper }}_ROLENAME="{{ $userConfig.roleName }}"
+    {{- $secretNameVar := printf "ES_USER_%s_SECRET_NAME" ($userNameKey | upper) }}
+    {{- $passwordVar := printf "ES_USER_%s_PASSWORD" ($userNameKey | upper) }}
+    {{- $passwordIsSet := false }}
     {{- if $userConfig.existingSecretName }}
-    ES_USER_{{ $userName | upper }}_PASSWORD=$(cat "/user-passwords/{{ $userName }}/{{ $userConfig.generatePassword.secretKey | default "password" }}")
+    {{ $passwordIsSet = true }}
+    {{- $secretKey := $userConfig.generatePassword.secretKey | default "password" }}
+    {{ $passwordVar }}="$(cat "/user-passwords/{{ $userNameKey }}/{{ $secretKey }}")"
     {{- else if $userConfig.generatePassword.enabled }}
-    ES_USER_{{ $userName | upper }}_PASSWORD=$(cat "/user-passwords/{{ $userName }}/{{ $userConfig.generatePassword.secretKey | default "password" }}")
+    {{ $passwordIsSet = true }}
+    {{- $secretKey := $userConfig.generatePassword.secretKey | default "password" }}
+    {{ $passwordVar }}="$(cat "/user-passwords/{{ $userNameKey }}/{{ $secretKey }}")"
     {{- end }}
 
-    if [ -n "$ES_USER_{{ $userName | upper }}_USERNAME" ] && [ -n "$ES_USER_{{ $userName | upper }}_PASSWORD" ]; then
-      echo "Configuring user: $ES_USER_{{ $userName | upper }}_USERNAME with role: $ES_USER_{{ $userName | upper }}_ROLE"
-      # Note: Directly setting password this way might not work for existing users if password hashing changes.
-      # For updates, usually only roles are modified, or password change API is used.
-      # This command creates or updates the user.
-      USER_PAYLOAD="{\"password\": \"$ES_USER_{{ $userName | upper }}_PASSWORD\", \"roles\": [\"$ES_USER_{{ $userName | upper }}_ROLE\"]}"
-      if [ -n "$ES_USER_EMAIL" ]; then # Optional email
-        USER_PAYLOAD=$(echo $USER_PAYLOAD | jq --arg email "$ES_USER_EMAIL" '. + {email: $email}')
-      fi
-      if [ -n "$ES_USER_FULL_NAME" ]; then # Optional full name
-        USER_PAYLOAD=$(echo $USER_PAYLOAD | jq --arg fn "$ES_USER_FULL_NAME" '. + {full_name: $fn}')
-      fi
+    if [ -n "${{ $passwordVar }}" ]; then
+      echo "Configuring user: ${{ ES_USER_{{ $userNameKey | upper }}_USERNAME }} with role: ${{ ES_USER_{{ $userNameKey | upper }}_ROLENAME }}"
+      # ES user payload needs an array of roles
+      USER_PAYLOAD="{\"password\": \"${{ $passwordVar }}\", \"roles\": [\"${{ ES_USER_{{ $userNameKey | upper }}_ROLENAME }}\"]}"
+      # Add other roles if specified, e.g. userConfig.otherRoles: [role1, role2]
 
-      curl $CURL_OPTS -XPUT "${ES_URL}/_security/user/$ES_USER_{{ $userName | upper }}_USERNAME" \
+      curl $CURL_OPTS -XPUT "${ES_URL}/_security/user/${{ ES_USER_{{ $userNameKey | upper }}_USERNAME }}" \
         -H "Content-Type: application/json" \
         -d "$USER_PAYLOAD"
       echo
     else
-      echo "Skipping user {{ $userName }}: username or password not set."
+      echo "Skipping user creation/update for {{ $userConfig.username }}: password not found or generation disabled."
     fi
+    {{- else }}
+    echo "Skipping user configuration for key '{{ $userNameKey }}': username not defined in values.yaml"
+    {{- end }}
+    {{- end }}
+
+    # Apply Role Mappings
+    echo "Applying Elasticsearch Role Mappings..."
+    {{- range $mappingKey, $mappingConfig := .Values.roleMappings }}
+    {{- if $mappingConfig.enabled }}
+    if [ -f "/config/role_mappings/{{ $mappingConfig.fileName }}" ]; then
+      echo "Applying Role Mapping: {{ $mappingConfig.mappingName }} from file {{ $mappingConfig.fileName }}"
+      # Role mapping name in ES is derived from mappingConfig.mappingName
+      curl $CURL_OPTS -XPUT "${ES_URL}/_security/role_mapping/{{ $mappingConfig.mappingName }}" \
+        -H "Content-Type: application/json" \
+        --data-binary "@/config/role_mappings/{{ $mappingConfig.fileName }}"
+      echo
+    else
+      echo "Role mapping file /config/role_mappings/{{ $mappingConfig.fileName }} not found. Skipping {{ $mappingConfig.mappingName }}."
+    fi
+    {{- else }}
+    echo "Skipping role mapping {{ $mappingConfig.mappingName }} as it is disabled in values.yaml."
+    {{- end }}
     {{- end }}
 
     # Apply ILM Policies
     echo "Applying ILM policies..."
     {{- range $policyKey, $policyConfig := .Values.ilmPolicies }}
+    {{- if $policyConfig.enabled }}
     if [ -f "/config/ilm_policies/{{ $policyConfig.fileName }}" ]; then
-      echo "Applying ILM policy: {{ $policyConfig.policyName }}"
+      echo "Applying ILM policy: {{ $policyConfig.policyName }} from file {{ $policyConfig.fileName }}"
       curl $CURL_OPTS -XPUT "${ES_URL}/_ilm/policy/{{ $policyConfig.policyName }}" \
         -H "Content-Type: application/json" \
         --data-binary "@/config/ilm_policies/{{ $policyConfig.fileName }}"
@@ -128,21 +161,57 @@ data:
     else
       echo "ILM policy file /config/ilm_policies/{{ $policyConfig.fileName }} not found. Skipping {{ $policyConfig.policyName }}."
     fi
+    {{- else }}
+    echo "Skipping ILM policy {{ $policyConfig.policyName }} as it is disabled in values.yaml."
+    {{- end }}
     {{- end }}
 
-    # Apply Index Templates
+    # Apply Index Templates (Legacy Templates)
     echo "Applying Index Templates..."
     {{- range $templateKey, $templateConfig := .Values.indexTemplates }}
+    {{- if $templateConfig.enabled }}
     if [ -f "/config/index_templates/{{ $templateConfig.fileName }}" ]; then
-      echo "Applying Index Template: {{ $templateConfig.templateName }}"
-      # Use _index_template for ES 7.8+ or _template for older versions. Assuming newer.
-      curl $CURL_OPTS -XPUT "${ES_URL}/_index_template/{{ $templateConfig.templateName }}" \
+      echo "Applying Index Template: {{ $templateConfig.templateName }} from file {{ $templateConfig.fileName }}"
+      # Using _template for legacy index templates.
+      # For composable index templates (ES 7.8+), use _index_template/ and ensure template is in composable format.
+      curl $CURL_OPTS -XPUT "${ES_URL}/_template/{{ $templateConfig.templateName }}" \
         -H "Content-Type: application/json" \
         --data-binary "@/config/index_templates/{{ $templateConfig.fileName }}"
       echo
     else
       echo "Index template file /config/index_templates/{{ $templateConfig.fileName }} not found. Skipping {{ $templateConfig.templateName }}."
     fi
+    {{- else }}
+    echo "Skipping Index Template {{ $templateConfig.templateName }} as it is disabled in values.yaml."
     {{- end }}
+    {{- end }}
+
+    # Optional: Bootstrap first index for rollover if using legacy templates and ILM rollover
+    # This is a common pattern if Logstash/clients are not aware of creating the write alias.
+    # Needs to be idempotent.
+    echo "Checking for pscheduler initial index for ILM rollover..."
+    BOOTSTRAP_INDEX_NAME="pscheduler-000001"
+    WRITE_ALIAS="pscheduler"
+    if ! curl $CURL_OPTS -I -XGET "${ES_URL}/${BOOTSTRAP_INDEX_NAME}" > /dev/null 2>&1; then
+      echo "Initial index ${BOOTSTRAP_INDEX_NAME} not found. Attempting to create with write alias ${WRITE_ALIAS}..."
+      # Ensure the template is applied first by ES before creating this index
+      sleep 5 # Give a moment for template changes to propagate if any race condition
+      curl $CURL_OPTS -XPUT "${ES_URL}/${BOOTSTRAP_INDEX_NAME}" -H "Content-Type: application/json" -d"
+      {
+        \"aliases\": {
+          \"${WRITE_ALIAS}\": {
+            \"is_write_index\": true
+          }
+        }
+      }"
+      echo "Bootstrap index ${BOOTSTRAP_INDEX_NAME} created with write alias ${WRITE_ALIAS}."
+    else
+      echo "Initial index ${BOOTSTRAP_INDEX_NAME} already exists."
+      # Optionally verify write alias is set if index exists but alias might be missing/wrong
+      # ALIAS_INFO=$(curl $CURL_OPTS -XGET "${ES_URL}/${BOOTSTRAP_INDEX_NAME}/_alias/${WRITE_ALIAS}" || true)
+      # if ! echo "$ALIAS_INFO" | grep -q "\"is_write_index\":true"; then
+      #   echo "Warning: ${BOOTSTRAP_INDEX_NAME} exists, but ${WRITE_ALIAS} is not its write alias or alias is missing. Manual check advised."
+      # fi
+    fi
 
     echo "Elasticsearch configuration script finished successfully."

@@ -11,61 +11,67 @@ existingElasticsearch:
   insecureSkipVerify: false
 
 # Configuration for the perfSONAR users to be created in Elasticsearch
-# Each user will have a password generated (if enabled) and stored in a K8s secret.
-# Roles defined here must have corresponding JSON files in files/roles/ or already exist in ES.
 perfsonarUsers:
   logstash:
     username: "pscheduler_logstash"
-    # This role definition should exist in files/roles/ or pre-exist in ES
-    roleName: "pscheduler_logstash"
-    # If you have an existing K8s secret with the password, specify its name.
-    # The secret must contain a key named 'password'.
-    existingSecretName: "" # e.g., "my-logstash-secret"
+    roleName: "pscheduler_logstash_role" # Corresponds to files/roles/pscheduler_logstash_role.json
+    existingSecretName: ""
     generatePassword:
       enabled: true
-      secretName: "{{ .Release.Name }}-ps-logstash-credentials" # Secret to store generated password
+      secretName: "{{ .Release.Name }}-ps-logstash-credentials"
       secretKey: "password"
       passwordLength: 16
-  # Example: Another user for querying/reading data (e.g., for Grafana)
-  # grafana_reader:
-  #   username: "pscheduler_grafana"
-  #   roleName: "pscheduler_reader_role" # Assumes files/roles/pscheduler_reader_role.json exists
-  #   existingSecretName: ""
-  #   generatePassword:
-  #     enabled: true
-  #     secretName: "{{ .Release.Name }}-ps-grafana-credentials"
-  #     secretKey: "password"
-  #     passwordLength: 16
+  reader:
+    username: "pscheduler_reader"
+    roleName: "pscheduler_reader_role" # Corresponds to files/roles/pscheduler_reader_role.json
+    existingSecretName: ""
+    generatePassword:
+      enabled: true # Set to false if this user is only for mapping existing external users
+      secretName: "{{ .Release.Name }}-ps-reader-credentials"
+      secretKey: "password"
+      passwordLength: 16
+  writer:
+    username: "pscheduler_writer"
+    roleName: "pscheduler_writer_role" # Corresponds to files/roles/pscheduler_writer_role.json
+    existingSecretName: ""
+    generatePassword:
+      enabled: true # Set to false if this user is only for mapping existing external users
+      secretName: "{{ .Release.Name }}-ps-writer-credentials"
+      secretKey: "password"
+      passwordLength: 16
 
-# Configuration for the Logstash proxy user (if Logstash needs to authenticate to an input source)
-# This user is typically configured within Logstash's input plugins.
-logstashProxyUser:
-  enabled: false # Disabled by default, enable if needed
-  username: "perfsonar_proxy_input_user"
-  # This user might not need an ES role if it's for authenticating to external systems via Logstash
-  # If it does need ES roles, add a roleName field.
-  existingSecretName: ""
-  generatePassword:
+# Configuration for Elasticsearch Role Mappings
+# JSON files for Role Mappings should be placed in files/role_mappings/
+# Example: files/role_mappings/pscheduler_logstash_mapping.json
+# The key (e.g., "logstash_mapping") is for Helm's loop, the mappingName is used in the API.
+roleMappings:
+  pscheduler_logstash:
     enabled: true
-    secretName: "{{ .Release.Name }}-logstash-proxy-input-credentials"
-    secretKey: "password"
-    passwordLength: 16
+    mappingName: "pscheduler_logstash_mapping"
+    fileName: "pscheduler_logstash_mapping.json"
+  pscheduler_reader:
+    enabled: true
+    mappingName: "pscheduler_reader_mapping"
+    fileName: "pscheduler_reader_mapping.json"
+  pscheduler_writer:
+    enabled: true
+    mappingName: "pscheduler_writer_mapping"
+    fileName: "pscheduler_writer_mapping.json"
 
 # Configuration for Elasticsearch Index Lifecycle Management (ILM) Policies
-# JSON files for ILM policies should be placed in files/ilm_policies/
-# Example: files/ilm_policies/pscheduler_ilm_policy.json
 ilmPolicies:
-  # pscheduler_default:
-  #   policyName: "pscheduler_ilm_policy" # This name is used in the API call
-  #   fileName: "pscheduler_ilm_policy.json" # File in files/ilm_policies/
+  pscheduler_default:
+    enabled: true
+    policyName: "pscheduler_hot_warm_delete_policy" # This name is used in the API call AND in index template
+    fileName: "pscheduler_hot_warm_delete_policy.json" # File in files/ilm_policies/
 
 # Configuration for Elasticsearch Index Templates
-# JSON files for Index Templates should be placed in files/index_templates/
-# Example: files/index_templates/pscheduler_template.json
+# Use legacy templates (_template) or composable templates (_index_template)
 indexTemplates:
-  # pscheduler_default:
-  #   templateName: "pscheduler_template" # This name is used in the API call
-  #   fileName: "pscheduler_template.json" # File in files/index_templates/
+  pscheduler_default:
+    enabled: true
+    templateName: "pscheduler_default_template" # This name is used in the API call
+    fileName: "pscheduler_default_template.json" # File in files/index_templates/
 
 # Image and settings for the configuration job
 configJob:

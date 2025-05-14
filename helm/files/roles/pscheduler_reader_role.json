@@ -1,0 +1,17 @@
+{
+  "cluster": [],
+  "indices": [
+    {
+      "names": [
+        "pscheduler*",
+        "prometheus*"
+      ],
+      "privileges": [
+        "read",
+        "indices:admin/mappings/get",
+        "indices:monitor/settings/get"
+      ],
+      "allow_restricted_indices": false
+    }
+  ]
+}

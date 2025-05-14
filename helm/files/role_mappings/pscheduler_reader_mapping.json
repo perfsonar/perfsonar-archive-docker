@@ -1,0 +1,5 @@
+{
+  "roles": [ "pscheduler_reader_role" ],
+  "enabled": true,
+  "users": [ "pscheduler_reader" ]
+}

@@ -1,0 +1,15 @@
+{
+  "cluster": [],
+  "indices": [
+    {
+      "names": [
+        "pscheduler*",
+        "prometheus*"
+      ],
+      "privileges": [
+        "write"
+      ],
+      "allow_restricted_indices": false
+    }
+  ]
+}

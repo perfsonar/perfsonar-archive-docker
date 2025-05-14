@@ -63,7 +63,7 @@ spec:
               mountPath: /es-certs
               readOnly: true
             {{- end }}
-            {{- range $userName, $userConfig := .Values.perfsonarUsers }}
+            {{- range $userNameKey, $userConfig := .Values.perfsonarUsers }}
             {{- $secretName := "" }}
             {{- if $userConfig.existingSecretName }}
             {{- $secretName = $userConfig.existingSecretName }}
@@ -71,21 +71,8 @@ spec:
             {{- $secretName = tpl $userConfig.generatePassword.secretName $ }}
             {{- end }}
             {{- if $secretName }}
-            - name: user-password-{{ $userName | replace "_" "-" }}
-              mountPath: "/user-passwords/{{ $userName }}"
-              readOnly: true
-            {{- end }}
-            {{- end }}
-            {{- if and .Values.logstashProxyUser.enabled }}
-            {{- $secretName := "" }}
-            {{- if .Values.logstashProxyUser.existingSecretName }}
-            {{- $secretName = .Values.logstashProxyUser.existingSecretName }}
-            {{- else if .Values.logstashProxyUser.generatePassword.enabled }}
-            {{- $secretName = tpl .Values.logstashProxyUser.generatePassword.secretName . }}
-            {{- end }}
-            {{- if $secretName }}
-            - name: logstash-proxy-password
-              mountPath: "/user-passwords/logstashproxy"
+            - name: user-password-{{ $userNameKey | lower | replace "_" "-" }} # K8s resource names
+              mountPath: "/user-passwords/{{ $userNameKey }}" # Mount path can retain original key
               readOnly: true
             {{- end }}
             {{- end }}
@@ -101,7 +88,7 @@ spec:
               - key: configure-es.sh
                 path: configure-es.sh
                 mode: 0755 # Make script executable
-        - name: es-config-files
+        - name: es-config-files # This volume will hold all JSON config files
           configMap:
             name: {{ include "perfsonar-archive-config-es.fullname" . }}-es-configs
             items:
@@ -110,23 +97,34 @@ spec:
               {{- range $path, $bytes := $roleFiles }}
               {{- $name := base $path }}
               - key: {{ printf "role_%s" $name }}
-                path: roles/{{ $name }}
+                path: roles/{{ $name }} # Mounted into /config/roles/
               {{- end }}
               {{- end }}
+
+              {{- $roleMappingFiles := .Files.Glob "files/role_mappings/*.json" }}
+              {{- if $roleMappingFiles }}
+              {{- range $path, $bytes := $roleMappingFiles }}
+              {{- $name := base $path }}
+              - key: {{ printf "role_mapping_%s" $name }}
+                path: role_mappings/{{ $name }} # Mounted into /config/role_mappings/
+              {{- end }}
+              {{- end }}
+
               {{- $ilmFiles := .Files.Glob "files/ilm_policies/*.json" }}
               {{- if $ilmFiles }}
               {{- range $path, $bytes := $ilmFiles }}
               {{- $name := base $path }}
               - key: {{ printf "ilm_%s" $name }}
-                path: ilm_policies/{{ $name }}
+                path: ilm_policies/{{ $name }} # Mounted into /config/ilm_policies/
               {{- end }}
               {{- end }}
+
               {{- $templateFiles := .Files.Glob "files/index_templates/*.json" }}
               {{- if $templateFiles }}
               {{- range $path, $bytes := $templateFiles }}
               {{- $name := base $path }}
               - key: {{ printf "template_%s" $name }}
-                path: index_templates/{{ $name }}
+                path: index_templates/{{ $name }} # Mounted into /config/index_templates/
               {{- end }}
               {{- end }}
         {{- if .Values.existingElasticsearch.caBundleSecretName }}
@@ -137,38 +135,21 @@ spec:
               - key: ca.crt
                 path: ca.crt
         {{- end }}
-        {{- range $userName, $userConfig := .Values.perfsonarUsers }}
-        {{- $secretName := "" }}
+        {{- range $userNameKey, $userConfig := .Values.perfsonarUsers }}
+        {{- $secretNameValue := "" }}
         {{- $secretKey := $userConfig.generatePassword.secretKey | default "password" }}
         {{- if $userConfig.existingSecretName }}
-        {{- $secretName = $userConfig.existingSecretName }}
+        {{- $secretNameValue = $userConfig.existingSecretName }}
         {{- else if $userConfig.generatePassword.enabled }}
-        {{- $secretName = tpl $userConfig.generatePassword.secretName $ }}
+        {{- $secretNameValue = tpl $userConfig.generatePassword.secretName $ }}
         {{- end }}
-        {{- if $secretName }}
-        - name: user-password-{{ $userName | replace "_" "-" }}
+        {{- if $secretNameValue }}
+        - name: user-password-{{ $userNameKey | lower | replace "_" "-" }} # K8s resource names
           secret:
-            secretName: {{ $secretName }}
+            secretName: {{ $secretNameValue }}
             items:
               - key: {{ $secretKey }}
-                path: {{ $secretKey }}
-        {{- end }}
-        {{- end }}
-        {{- if and .Values.logstashProxyUser.enabled }}
-        {{- $secretName := "" }}
-        {{- $secretKey := .Values.logstashProxyUser.generatePassword.secretKey | default "password" }}
-        {{- if .Values.logstashProxyUser.existingSecretName }}
-        {{- $secretName = .Values.logstashProxyUser.existingSecretName }}
-        {{- else if .Values.logstashProxyUser.generatePassword.enabled }}
-        {{- $secretName = tpl .Values.logstashProxyUser.generatePassword.secretName . }}
-        {{- end }}
-        {{- if $secretName }}
-        - name: logstash-proxy-password
-          secret:
-            secretName: {{ $secretName }}
-            items:
-              - key: {{ $secretKey }}
-                path: {{ $secretKey }}
+                path: {{ $secretKey }} # this path is relative to the mountPath /user-passwords/$userNameKey/
         {{- end }}
         {{- end }}
   backoffLimit: {{ .Values.configJob.backoffLimit }}
