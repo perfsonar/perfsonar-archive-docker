@@ -1,0 +1,101 @@
+# Configuration for connecting to the existing Elasticsearch instance
+existingElasticsearch:
+  host: "elasticsearch-master.default.svc.cluster.local"
+  port: 9200
+  scheme: "https"
+  # Kubernetes secret in the same namespace containing 'username' and 'password' keys for ES admin
+  adminCredentialsSecret: "elasticsearch-admin-credentials"
+  # Optional: Kubernetes secret in the same namespace containing 'ca.crt' key for ES CA bundle
+  caBundleSecretName: "" # e.g., "elasticsearch-ca-cert"
+  # Optional: Skip TLS verification - USE WITH CAUTION
+  insecureSkipVerify: false
+
+# Configuration for the perfSONAR users to be created in Elasticsearch
+# Each user will have a password generated (if enabled) and stored in a K8s secret.
+# Roles defined here must have corresponding JSON files in files/roles/ or already exist in ES.
+perfsonarUsers:
+  logstash:
+    username: "pscheduler_logstash"
+    # This role definition should exist in files/roles/ or pre-exist in ES
+    roleName: "pscheduler_logstash"
+    # If you have an existing K8s secret with the password, specify its name.
+    # The secret must contain a key named 'password'.
+    existingSecretName: "" # e.g., "my-logstash-secret"
+    generatePassword:
+      enabled: true
+      secretName: "{{ .Release.Name }}-ps-logstash-credentials" # Secret to store generated password
+      secretKey: "password"
+      passwordLength: 16
+  # Example: Another user for querying/reading data (e.g., for Grafana)
+  # grafana_reader:
+  #   username: "pscheduler_grafana"
+  #   roleName: "pscheduler_reader_role" # Assumes files/roles/pscheduler_reader_role.json exists
+  #   existingSecretName: ""
+  #   generatePassword:
+  #     enabled: true
+  #     secretName: "{{ .Release.Name }}-ps-grafana-credentials"
+  #     secretKey: "password"
+  #     passwordLength: 16
+
+# Configuration for the Logstash proxy user (if Logstash needs to authenticate to an input source)
+# This user is typically configured within Logstash's input plugins.
+logstashProxyUser:
+  enabled: false # Disabled by default, enable if needed
+  username: "perfsonar_proxy_input_user"
+  # This user might not need an ES role if it's for authenticating to external systems via Logstash
+  # If it does need ES roles, add a roleName field.
+  existingSecretName: ""
+  generatePassword:
+    enabled: true
+    secretName: "{{ .Release.Name }}-logstash-proxy-input-credentials"
+    secretKey: "password"
+    passwordLength: 16
+
+# Configuration for Elasticsearch Index Lifecycle Management (ILM) Policies
+# JSON files for ILM policies should be placed in files/ilm_policies/
+# Example: files/ilm_policies/pscheduler_ilm_policy.json
+ilmPolicies:
+  # pscheduler_default:
+  #   policyName: "pscheduler_ilm_policy" # This name is used in the API call
+  #   fileName: "pscheduler_ilm_policy.json" # File in files/ilm_policies/
+
+# Configuration for Elasticsearch Index Templates
+# JSON files for Index Templates should be placed in files/index_templates/
+# Example: files/index_templates/pscheduler_template.json
+indexTemplates:
+  # pscheduler_default:
+  #   templateName: "pscheduler_template" # This name is used in the API call
+  #   fileName: "pscheduler_template.json" # File in files/index_templates/
+
+# Image and settings for the configuration job
+configJob:
+  # Using curlimages/curl as it includes jq and other useful tools by default
+  image:
+    repository: "curlimages/curl"
+    tag: "latest" # Consider pinning to a specific version for stability
+  podAnnotations: {}
+  # resources:
+  #   limits:
+  #     cpu: 200m
+  #     memory: 256Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+  backoffLimit: 3
+  # Timeout for the job to complete
+  activeDeadlineSeconds: 300
+  # Annotations for the job's service account
+  serviceAccountAnnotations: {}
+
+# Logstash pScheduler pipeline configuration
+# This creates a ConfigMap that a separate Logstash deployment can consume.
+logstashPschedulerPipeline:
+  enabled: true
+  configMapName: "{{ .Release.Name }}-logstash-pscheduler-files"
+  # Optional: If your Logstash pipeline needs settings (logstash.yml)
+  # settingsConfigMapName: "{{ .Release.Name }}-logstash-settings"
+
+# RBAC configuration for the job
+rbac:
+  create: true
+  serviceAccountName: "{{ include \"perfsonar-archive-config-es.fullname\" . }}-job"

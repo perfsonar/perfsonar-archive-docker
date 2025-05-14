@@ -1,0 +1,28 @@
+{{- if .Values.logstashPschedulerPipeline.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ tpl .Values.logstashPschedulerPipeline.configMapName . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "perfsonar-archive-config-es.labels" . | nindent 4 }}
+data:
+  {{- $pipelineFiles := .Files.Glob "files/logstash_pscheduler_config/pipeline/*" }}
+  {{- if $pipelineFiles }}
+  {{- range $path, $bytes := $pipelineFiles }}
+  {{- $name := base $path }}
+  {{ $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+  {{- $scriptFiles := .Files.Glob "files/logstash_pscheduler_config/ruby_scripts/*" }}
+  {{- if $scriptFiles }}
+  {{- range $path, $bytes := $scriptFiles }}
+  {{- $name := base $path }}
+  # Naming convention to help Logstash find scripts if they are in a subdirectory structure
+  {{ printf "ruby_scripts_%s" $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+{{- end }}

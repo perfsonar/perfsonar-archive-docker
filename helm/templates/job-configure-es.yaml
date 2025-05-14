@@ -1,0 +1,179 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "perfsonar-archive-config-es.fullname" . }}-configure
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "perfsonar-archive-config-es.labels" . | nindent 4 }}
+  annotations:
+    # This annotation ensures that the Job is deleted after successful completion.
+    # "helm.sh/hook": post-install,post-upgrade # Could also be a hook
+    # "helm.sh/hook-delete-policy": hook-succeeded
+    # If not using hooks, manage job deletion manually or via TTL controller
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "perfsonar-archive-config-es.selectorLabels" . | nindent 8 }}
+        job-name: {{ include "perfsonar-archive-config-es.fullname" . }}-configure
+      {{- with .Values.configJob.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: OnFailure
+      {{- if .Values.rbac.create }}
+      serviceAccountName: {{ include "perfsonar-archive-config-es.jobServiceAccountName" . }}
+      {{- else }}
+      serviceAccountName: {{ .Values.rbac.serviceAccountName | default "default" }}
+      {{- end }}
+      containers:
+        - name: configurator
+          image: "{{ .Values.configJob.image.repository }}:{{ .Values.configJob.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "/scripts/configure-es.sh"]
+          env:
+            - name: ES_HOST
+              value: {{ .Values.existingElasticsearch.host | quote }}
+            - name: ES_PORT
+              value: {{ .Values.existingElasticsearch.port | quote }}
+            - name: ES_SCHEME
+              value: {{ .Values.existingElasticsearch.scheme | quote }}
+            - name: ES_INSECURE_SKIP_VERIFY
+              value: {{ .Values.existingElasticsearch.insecureSkipVerify | quote }}
+            - name: ES_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingElasticsearch.adminCredentialsSecret }}
+                  key: username
+            - name: ES_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingElasticsearch.adminCredentialsSecret }}
+                  key: password
+          volumeMounts:
+            - name: config-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: es-config-files
+              mountPath: /config
+              readOnly: true
+            {{- if .Values.existingElasticsearch.caBundleSecretName }}
+            - name: es-ca-bundle
+              mountPath: /es-certs
+              readOnly: true
+            {{- end }}
+            {{- range $userName, $userConfig := .Values.perfsonarUsers }}
+            {{- $secretName := "" }}
+            {{- if $userConfig.existingSecretName }}
+            {{- $secretName = $userConfig.existingSecretName }}
+            {{- else if $userConfig.generatePassword.enabled }}
+            {{- $secretName = tpl $userConfig.generatePassword.secretName $ }}
+            {{- end }}
+            {{- if $secretName }}
+            - name: user-password-{{ $userName | replace "_" "-" }}
+              mountPath: "/user-passwords/{{ $userName }}"
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if and .Values.logstashProxyUser.enabled }}
+            {{- $secretName := "" }}
+            {{- if .Values.logstashProxyUser.existingSecretName }}
+            {{- $secretName = .Values.logstashProxyUser.existingSecretName }}
+            {{- else if .Values.logstashProxyUser.generatePassword.enabled }}
+            {{- $secretName = tpl .Values.logstashProxyUser.generatePassword.secretName . }}
+            {{- end }}
+            {{- if $secretName }}
+            - name: logstash-proxy-password
+              mountPath: "/user-passwords/logstashproxy"
+              readOnly: true
+            {{- end }}
+            {{- end }}
+          {{- with .Values.configJob.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: config-scripts
+          configMap:
+            name: {{ include "perfsonar-archive-config-es.fullname" . }}-es-configs
+            items:
+              - key: configure-es.sh
+                path: configure-es.sh
+                mode: 0755 # Make script executable
+        - name: es-config-files
+          configMap:
+            name: {{ include "perfsonar-archive-config-es.fullname" . }}-es-configs
+            items:
+              {{- $roleFiles := .Files.Glob "files/roles/*.json" }}
+              {{- if $roleFiles }}
+              {{- range $path, $bytes := $roleFiles }}
+              {{- $name := base $path }}
+              - key: {{ printf "role_%s" $name }}
+                path: roles/{{ $name }}
+              {{- end }}
+              {{- end }}
+              {{- $ilmFiles := .Files.Glob "files/ilm_policies/*.json" }}
+              {{- if $ilmFiles }}
+              {{- range $path, $bytes := $ilmFiles }}
+              {{- $name := base $path }}
+              - key: {{ printf "ilm_%s" $name }}
+                path: ilm_policies/{{ $name }}
+              {{- end }}
+              {{- end }}
+              {{- $templateFiles := .Files.Glob "files/index_templates/*.json" }}
+              {{- if $templateFiles }}
+              {{- range $path, $bytes := $templateFiles }}
+              {{- $name := base $path }}
+              - key: {{ printf "template_%s" $name }}
+                path: index_templates/{{ $name }}
+              {{- end }}
+              {{- end }}
+        {{- if .Values.existingElasticsearch.caBundleSecretName }}
+        - name: es-ca-bundle
+          secret:
+            secretName: {{ .Values.existingElasticsearch.caBundleSecretName }}
+            items:
+              - key: ca.crt
+                path: ca.crt
+        {{- end }}
+        {{- range $userName, $userConfig := .Values.perfsonarUsers }}
+        {{- $secretName := "" }}
+        {{- $secretKey := $userConfig.generatePassword.secretKey | default "password" }}
+        {{- if $userConfig.existingSecretName }}
+        {{- $secretName = $userConfig.existingSecretName }}
+        {{- else if $userConfig.generatePassword.enabled }}
+        {{- $secretName = tpl $userConfig.generatePassword.secretName $ }}
+        {{- end }}
+        {{- if $secretName }}
+        - name: user-password-{{ $userName | replace "_" "-" }}
+          secret:
+            secretName: {{ $secretName }}
+            items:
+              - key: {{ $secretKey }}
+                path: {{ $secretKey }}
+        {{- end }}
+        {{- end }}
+        {{- if and .Values.logstashProxyUser.enabled }}
+        {{- $secretName := "" }}
+        {{- $secretKey := .Values.logstashProxyUser.generatePassword.secretKey | default "password" }}
+        {{- if .Values.logstashProxyUser.existingSecretName }}
+        {{- $secretName = .Values.logstashProxyUser.existingSecretName }}
+        {{- else if .Values.logstashProxyUser.generatePassword.enabled }}
+        {{- $secretName = tpl .Values.logstashProxyUser.generatePassword.secretName . }}
+        {{- end }}
+        {{- if $secretName }}
+        - name: logstash-proxy-password
+          secret:
+            secretName: {{ $secretName }}
+            items:
+              - key: {{ $secretKey }}
+                path: {{ $secretKey }}
+        {{- end }}
+        {{- end }}
+  backoffLimit: {{ .Values.configJob.backoffLimit }}
+  {{- if .Values.configJob.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ .Values.configJob.activeDeadlineSeconds }}
+  {{- end }}
+  # Optional: TTL controller for automatic job cleanup after completion or failure
+  # ttlSecondsAfterFinished: 3600

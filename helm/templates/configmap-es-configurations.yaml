@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "perfsonar-archive-config-es.fullname" . }}-es-configs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "perfsonar-archive-config-es.labels" . | nindent 4 }}
+data:
+  {{- $roleFiles := .Files.Glob "files/roles/*.json" }}
+  {{- if $roleFiles }}
+  {{- range $path, $bytes := $roleFiles }}
+  {{- $name := base $path }}
+  {{ printf "role_%s" $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+  {{- $ilmFiles := .Files.Glob "files/ilm_policies/*.json" }}
+  {{- if $ilmFiles }}
+  {{- range $path, $bytes := $ilmFiles }}
+  {{- $name := base $path }}
+  {{ printf "ilm_%s" $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+  {{- $templateFiles := .Files.Glob "files/index_templates/*.json" }}
+  {{- if $templateFiles }}
+  {{- range $path, $bytes := $templateFiles }}
+  {{- $name := base $path }}
+  {{ printf "template_%s" $name }}: |-
+{{ .Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+  # The script to run inside the job
+  configure-es.sh: |
+    #!/bin/sh
+    set -e # Exit immediately if a command exits with a non-zero status.
+    # set -x # Print commands and their arguments as they are executed.
+
+    echo "Starting Elasticsearch configuration script..."
+
+    ES_HOST=${ES_HOST}
+    ES_PORT=${ES_PORT}
+    ES_SCHEME=${ES_SCHEME}
+    ES_URL="${ES_SCHEME}://${ES_HOST}:${ES_PORT}"
+
+    CURL_OPTS="-s -f" # Silent, fail on error
+    if [ -n "$ES_ADMIN_USERNAME" ] && [ -n "$ES_ADMIN_PASSWORD" ]; then
+      CURL_OPTS="$CURL_OPTS -u ${ES_ADMIN_USERNAME}:${ES_ADMIN_PASSWORD}"
+    fi
+    if [ -f "/es-certs/ca.crt" ]; then
+      CURL_OPTS="$CURL_OPTS --cacert /es-certs/ca.crt"
+    elif [ "$ES_INSECURE_SKIP_VERIFY" = "true" ]; then
+      CURL_OPTS="$CURL_OPTS -k"
+    fi
+
+    echo "Waiting for Elasticsearch to be available at ${ES_URL}..."
+    # Simple wait loop (max 60 seconds)
+    RETRY_COUNT=0
+    MAX_RETRIES=12
+    RETRY_INTERVAL=5
+    until curl $CURL_OPTS -XGET "${ES_URL}/_cluster/health?pretty" > /dev/null 2>&1; do
+      RETRY_COUNT=$((RETRY_COUNT+1))
+      if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "Elasticsearch not available after $MAX_RETRIES retries. Exiting."
+        exit 1
+      fi
+      echo "Elasticsearch not yet available. Retrying in $RETRY_INTERVAL seconds... (Attempt $RETRY_COUNT/$MAX_RETRIES)"
+      sleep $RETRY_INTERVAL
+    done
+    echo "Elasticsearch is up!"
+
+    # Apply Roles
+    echo "Applying Elasticsearch roles..."
+    for role_file_path in /config/roles/*.json; do
+      if [ -f "$role_file_path" ]; then
+        role_name=$(basename "$role_file_path" .json)
+        echo "Applying role: ${role_name}"
+        curl $CURL_OPTS -XPUT "${ES_URL}/_security/role/${role_name}" -H "Content-Type: application/json" --data-binary "@${role_file_path}"
+        echo # Newline for better log readability
+      fi
+    done
+
+    # Create/Update Users
+    echo "Creating/Updating Elasticsearch users..."
+    {{- range $userName, $userConfig := .Values.perfsonarUsers }}
+    ES_USER_{{ $userName | upper }}_USERNAME="{{ $userConfig.username }}"
+    ES_USER_{{ $userName | upper }}_ROLE="{{ $userConfig.roleName }}"
+    {{- if $userConfig.existingSecretName }}
+    ES_USER_{{ $userName | upper }}_PASSWORD=$(cat "/user-passwords/{{ $userName }}/{{ $userConfig.generatePassword.secretKey | default "password" }}")
+    {{- else if $userConfig.generatePassword.enabled }}
+    ES_USER_{{ $userName | upper }}_PASSWORD=$(cat "/user-passwords/{{ $userName }}/{{ $userConfig.generatePassword.secretKey | default "password" }}")
+    {{- end }}
+
+    if [ -n "$ES_USER_{{ $userName | upper }}_USERNAME" ] && [ -n "$ES_USER_{{ $userName | upper }}_PASSWORD" ]; then
+      echo "Configuring user: $ES_USER_{{ $userName | upper }}_USERNAME with role: $ES_USER_{{ $userName | upper }}_ROLE"
+      # Note: Directly setting password this way might not work for existing users if password hashing changes.
+      # For updates, usually only roles are modified, or password change API is used.
+      # This command creates or updates the user.
+      USER_PAYLOAD="{\"password\": \"$ES_USER_{{ $userName | upper }}_PASSWORD\", \"roles\": [\"$ES_USER_{{ $userName | upper }}_ROLE\"]}"
+      if [ -n "$ES_USER_EMAIL" ]; then # Optional email
+        USER_PAYLOAD=$(echo $USER_PAYLOAD | jq --arg email "$ES_USER_EMAIL" '. + {email: $email}')
+      fi
+      if [ -n "$ES_USER_FULL_NAME" ]; then # Optional full name
+        USER_PAYLOAD=$(echo $USER_PAYLOAD | jq --arg fn "$ES_USER_FULL_NAME" '. + {full_name: $fn}')
+      fi
+
+      curl $CURL_OPTS -XPUT "${ES_URL}/_security/user/$ES_USER_{{ $userName | upper }}_USERNAME" \
+        -H "Content-Type: application/json" \
+        -d "$USER_PAYLOAD"
+      echo
+    else
+      echo "Skipping user {{ $userName }}: username or password not set."
+    fi
+    {{- end }}
+
+    # Apply ILM Policies
+    echo "Applying ILM policies..."
+    {{- range $policyKey, $policyConfig := .Values.ilmPolicies }}
+    if [ -f "/config/ilm_policies/{{ $policyConfig.fileName }}" ]; then
+      echo "Applying ILM policy: {{ $policyConfig.policyName }}"
+      curl $CURL_OPTS -XPUT "${ES_URL}/_ilm/policy/{{ $policyConfig.policyName }}" \
+        -H "Content-Type: application/json" \
+        --data-binary "@/config/ilm_policies/{{ $policyConfig.fileName }}"
+      echo
+    else
+      echo "ILM policy file /config/ilm_policies/{{ $policyConfig.fileName }} not found. Skipping {{ $policyConfig.policyName }}."
+    fi
+    {{- end }}
+
+    # Apply Index Templates
+    echo "Applying Index Templates..."
+    {{- range $templateKey, $templateConfig := .Values.indexTemplates }}
+    if [ -f "/config/index_templates/{{ $templateConfig.fileName }}" ]; then
+      echo "Applying Index Template: {{ $templateConfig.templateName }}"
+      # Use _index_template for ES 7.8+ or _template for older versions. Assuming newer.
+      curl $CURL_OPTS -XPUT "${ES_URL}/_index_template/{{ $templateConfig.templateName }}" \
+        -H "Content-Type: application/json" \
+        --data-binary "@/config/index_templates/{{ $templateConfig.fileName }}"
+      echo
+    else
+      echo "Index template file /config/index_templates/{{ $templateConfig.fileName }} not found. Skipping {{ $templateConfig.templateName }}."
+    fi
+    {{- end }}
+
+    echo "Elasticsearch configuration script finished successfully."
