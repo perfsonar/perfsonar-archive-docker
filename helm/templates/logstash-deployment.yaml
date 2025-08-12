@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-logstash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: "{{ .Values.logstash.image.repository }}:{{ .Values.logstash.image.tag }}"
+          imagePullPolicy: {{ .Values.logstash.image.pullPolicy }}
+          env:
+            - name: LOGSTASH_VERSION
+              value: {{ .Values.logstash.logstashVersion | quote }}
+            - name: MONITORING_ENABLED
+              value: "false"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: RATE_CACHE_MAX_ENTRIES
+              value: "10000000"
+            - name: RATE_CACHE_EXPIRES
+              value: "600"
+          ports:
+            - containerPort: 11283
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+            - name: logstash-config
+              mountPath: /usr/share/logstash/config/
+      volumes:
+        - name: perfsonar-logstash
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-logstash
+        - name: logstash-config
+          emptyDir: {}

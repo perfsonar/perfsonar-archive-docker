@@ -1,136 +1,139 @@
-# perfSONAR Archive Elasticsearch Configuration Helm Chart
+# perfSONAR Archive Helm Chart
 
-This Helm chart configures an existing Elasticsearch instance for use as a perfSONAR archive. It sets up:
-
-*   Elasticsearch users and roles (`pscheduler_logstash`, `pscheduler_reader`, `pscheduler_writer`).
-*   Role mappings.
-*   An Index Lifecycle Management (ILM) policy for `pscheduler` data streams.
-*   Composable index templates (component templates and an index template) for `pscheduler` data streams, enabling modern Elasticsearch features.
-*   A Kubernetes Job to apply these configurations to your Elasticsearch cluster.
-*   A ConfigMap containing Logstash pipeline configuration files, designed to be consumed by a separate Logstash deployment.
-
-This chart **does not** deploy Elasticsearch or Logstash itself. It assumes you have an existing Elasticsearch cluster and a separate Logstash deployment that will use the configurations provided by this chart.
+This Helm chart deploys a containerized perfSONAR archive stack on Kubernetes, including OpenSearch, Logstash, and OpenSearch Dashboards.
 
 ## Prerequisites
 
-*   Helm 3 installed.
-*   A running Kubernetes cluster.
-*   An existing Elasticsearch cluster (version 7.x or newer recommended for data streams).
-*   `kubectl` configured to interact with your Kubernetes cluster.
-*   (Optional but Recommended) An existing Logstash deployment, or a plan to deploy one, that can consume the generated ConfigMap.
+- Kubernetes 1.19+
+- Helm 3.0+
+- A pre-configured StorageClass for PersistentVolume provisioning.
+- Docker images for each service (`perfsonar-downloader`, `opensearch-node`, `logstash`, and `opensearch-dashboards`) must be built and available in a container registry accessible by your Kubernetes cluster.
 
-## Chart Structure
+## Installing the Chart
 
-helm/
-├── Chart.yaml
-├── values.yaml
-├── README.md
-├── files/
-│ ├── roles/ # Elasticsearch role definitions
-│ │ ├── pscheduler_logstash_role.json
-│ │ ├── pscheduler_reader_role.json
-│ │ └── pscheduler_writer_role.json
-│ ├── role_mappings/ # Elasticsearch role mappings
-│ │ ├── pscheduler_logstash_mapping.json
-│ │ ├── pscheduler_reader_mapping.json
-│ │ └── pscheduler_writer_mapping.json
-│ ├── ilm_policies/ # ILM policy definitions
-│ │ └── pscheduler_hot_warm_delete_policy.json
-│ ├── component_templates/ # Composable template components
-│ │ ├── pscheduler_mappings_component.json
-│ │ └── pscheduler_settings_component.json
-│ ├── index_templates/ # Composable index template for data streams
-│ │ └── pscheduler_default_template.json
-│ └── logstash_pscheduler_config/ # Logstash pipeline files
-│ ├── pipeline/
-│ │ ├── 01-inputs.conf
-│ │ ├── # ... (other filter files like 10-common.conf, etc.)
-│ │ └── 99-outputs.conf
-│ └── ruby_scripts/
-│ └── prometheus_parse.rb
-└── templates/
-├── _helpers.tpl
-├── rbac.yaml
-├── secrets-generated-passwords.yaml
-├── configmap-es-configurations.yaml # Contains configure-es.sh script & ES JSON configs
-├── configmap-logstash-pipeline.yaml # For Logstash pipeline files
-└── job-configure-es.yaml # The K8s Job to configure ES
+To install the chart with the release name `perfsonar-archive`:
 
+```bash
+helm install perfsonar-archive .
+```
+
+The command deploys perfSONAR archive on the Kubernetes cluster with the default configuration. The [Parameters](#parameters) section lists the parameters that can be configured during installation.
+
+> **Tip**: List all releases using `helm list`
+
+## Uninstalling the Chart
+
+To uninstall/delete the `perfsonar-archive` deployment:
+
+```bash
+helm delete perfsonar-archive
+```
+
+The command removes all the Kubernetes components associated with the chart and deletes the release.
 
 ## Configuration
 
-The primary way to configure this chart is through the `values.yaml` file or by providing your own values file during installation (`-f my-values.yaml`).
+The following table lists the configurable parameters of the perfSONAR Archive chart and their default values.
 
-### Key Configuration Parameters (`values.yaml`)
+### Global Parameters
 
-*   **`existingElasticsearch`**:
-    *   `host`: Hostname or service name of your Elasticsearch cluster.
-    *   `port`: Port number for Elasticsearch (e.g., 9200).
-    *   `scheme`: `http` or `https`.
-    *   `adminCredentialsSecret`: Name of the Kubernetes secret containing Elasticsearch admin `username` and `password`.
-    *   `caBundleSecretName`: (Optional) Name of the Kubernetes secret containing `ca.crt` if your Elasticsearch uses a custom CA.
-    *   `insecureSkipVerify`: (Optional, default `false`) Set to `true` to skip TLS verification (not recommended for production).
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `perfsonarVersion` | The version of perfSONAR components to be used by the downloader job. | `5.2.0` |
 
-*   **`perfsonarUsers`**: Defines users to be created (e.g., `logstash`, `reader`, `writer`).
-    *   `username`: The username for Elasticsearch.
-    *   `roleName`: The Elasticsearch role to assign (must correspond to a file in `files/roles/`).
-    *   `generatePassword.enabled`: If `true`, a password will be generated.
-    *   `generatePassword.secretName`: Name of the Kubernetes secret where the generated password will be stored.
-    *   `existingSecretName`: If you manage passwords externally, provide the name of a K8s secret containing the password.
+### Downloader Parameters
 
-*   **`roleMappings`**: Defines Elasticsearch role mappings.
-    *   `enabled`: Set to `true` to apply this mapping.
-    *   `mappingName`: The name of the role mapping in Elasticsearch.
-    *   `fileName`: The corresponding JSON file in `files/role_mappings/`.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `images.repository` | Downloader image repository | `perfsonar/downloader` |
+| `images.tag` | Downloader image tag | `5.2.0` |
+| `images.pullPolicy` | Downloader image pull policy | `Always` |
 
-*   **`ilmPolicies`**: Defines ILM policies.
-    *   `enabled`: Set to `true` to apply this policy.
-    *   `policyName`: The name of the ILM policy in Elasticsearch (this name is also referenced in the settings component template).
-    *   `fileName`: The corresponding JSON file in `files/ilm_policies/`.
+### Opensearch Parameters
 
-*   **`componentTemplates`**: Defines component templates.
-    *   `enabled`: Set to `true` to apply this component template.
-    *   `templateName`: The name of the component template in Elasticsearch.
-    *   `fileName`: The corresponding JSON file in `files/component_templates/`.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `images.repository` | OpenSearch image repository | `perfsonar/opensearch-node` |
+| `images.tag` | OpenSearch image tag | `5.2.0` |
+| `images.pullPolicy` | OpenSearch image pull policy | `Always` |
+| `opensearchVersion` | The version of OpenSearch to use | `2.18.0` |
+| `initialAdminPassword` | Initial admin password | `"perfSONAR123!"` |
+| `persistence.enabled` | Enable persistence for OpenSearch Data using a PersistentVolumeClaim | `true` |
+| `persistence.storageClass` | The StorageClass to use for the PersistentVolumeClaim | `standard` |
+| `persistence.size` | The size of the PersistentVolumeClaim for OpenSearch data. | `10Gi` |
 
-*   **`indexTemplates`**: Defines the main index template for data streams.
-    *   `enabled`: Set to `true` to apply this index template.
-    *   `templateName`: The name of the index template in Elasticsearch.
-    *   `fileName`: The corresponding JSON file in `files/index_templates/`.
+### Logstash Parameters
 
-*   **`configJob`**: Configuration for the Kubernetes Job that applies settings.
-    *   `image`: Container image for the job (defaults to `curlimages/curl`).
-    *   `resources`: CPU/memory requests and limits.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `images.repository` | Logstash image repository | `perfsonar/logstash` |
+| `images.tag` | Logstash image tag | `5.2.0` |
+| `images.pullPolicy` | Logstash image pull policy | `Always` |
+| `logstashVersion` | The version of Logstash to use | `8.17.3` |
 
-*   **`logstashPschedulerPipeline`**:
-    *   `enabled`: If `true`, creates a ConfigMap with Logstash pipeline files.
-    *   `configMapName`: Name of the ConfigMap to be created.
+### Dashboards Parameters
 
-*   **`rbac`**:
-    *   `create`: If `true`, creates a ServiceAccount, Role, and RoleBinding for the configuration Job.
-    *   `serviceAccountName`: Name of the ServiceAccount to use or create.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `images.repository` | Dashboards image repository | `perfsonar/opensearch-dashboards` |
+| `images.tag` | Dashboards image tag | `5.2.0` |
+| `images.pullPolicy` | Dashboards image pull policy | `Always` |
+| `opensearchVersion` | The version of OpenSearch-Dashboards to use | `2.18.0` |
 
-### Before Installation: Create Elasticsearch Admin Credentials Secret
+## Deployment Process
 
-The chart requires a Kubernetes secret containing the administrative username and password for your Elasticsearch cluster.
+The chart follows this deployment sequence:
 
+1. **PVC Creation**: Persistent volumes are created for data storage
+2. **Downloader Job**: Downloads and prepares perfSONAR components
+3. **OpenSearch**: Starts after downloader job completes
+4. **Logstash**: Starts after downloader job completes
+5. **Dashboards**: Starts after downloader job completes
+
+## Accessing the Application
+
+After deployment:
+
+1. **Get the dashboards URL**:
+   ```bash
+    export NODE_PORT=$(kubectl get --namespace [NAMESPACE] -o jsonpath="{.spec.ports[0].nodePort}" services perfsonar-archive-opensearch-dashboards)
+    export NODE_IP=$(kubectl get nodes --namespace [NAMESPACE] -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo http://$NODE_IP:$NODE_PORT
+   ```
+
+2. **Get the admin password**:
+   ```bash
+   kubectl exec -it statefulset/perfsonar-archive-opensearch-node -- grep -w admin /usr/lib/perfsonar/archive/auth_setup.out
+   ```
+
+## Troubleshooting
+
+### Check deployment status:
 ```bash
-kubectl create secret generic elasticsearch-admin-credentials \
-  --from-literal=username='YOUR_ES_ADMIN_USERNAME' \
-  --from-literal=password='YOUR_ES_ADMIN_PASSWORD' \
-  -n <your-namespace>
+kubectl get pods -l app.kubernetes.io/instance=perfsonar-archive
 ```
 
-### (Optional) Create Elasticsearch CA Bundle Secret
-
-If your Elasticsearch instance uses a custom CA certificate and you want secure communication (scheme: "https" and insecureSkipVerify: false), create a secret containing the CA certificate:
-
+### View logs:
 ```bash
-kubectl create secret generic elasticsearch-ca-cert \
-  --from-file=ca.crt=/path/to/your/es-ca.crt \
-  -n <your-namespace>
+# Downloader job logs
+kubectl logs job/perfsonar-archive-downloader
+
+# OpenSearch logs
+kubectl logs statefulset/perfsonar-archive-opensearch-node
+
+# Logstash logs
+kubectl logs deployment/perfsonar-archive-logstash
+
+# Dashboards logs
+kubectl logs deployment/perfsonar-archive-opensearch-dashboards
 ```
 
-Then, set `existingElasticsearch.caBundleSecretName: "elasticsearch-ca-cert"` in your values.yaml.
+### Common Issues
 
-### Installation
+1. **Pods stuck in Pending**: Check if PVCs are bound and nodes have sufficient resources
+2. **OpenSearch fails to start**: Verify memory limits and ensure no memory swapping
+3. **Services not ready**: Wait for the downloader job to complete first
+
+## License
+
+This chart is licensed under the Apache License 2.0.

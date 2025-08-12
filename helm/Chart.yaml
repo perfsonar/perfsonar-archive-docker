@@ -1,6 +1,6 @@
 apiVersion: v2
-name: perfsonar-archive-config-es
-description: A Helm chart to configure an existing Elasticsearch instance for perfSONAR archive
+name: perfsonar-archive
+description: A Helm chart for deploying the perfSONAR Archive stack
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
+appVersion: "5.2.0"

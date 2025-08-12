@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-opensearch-node
+spec:
+  serviceName: {{ include "perfsonar-archive.fullname" . }}-opensearch-node
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch-node
+  template:
+    metadata:
+      labels:
+        app: opensearch-node
+    spec:
+      containers:
+        - name: opensearch-node
+          image: "{{ .Values.opensearch-node.image.repository }}:{{ .Values.opensearch-node.image.tag }}"
+          imagePullPolicy: {{ .Values.opensearch-node.image.pullPolicy }}
+          env:
+            - name: OPENSEARCH_VERSION
+              value: {{ .Values.opensearch-node.opensearchVersion | quote }}
+            - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+              value: {{ .Values.opensearch-node.initialAdminPassword | quote }}
+            - name: DISABLE_INSTALL_DEMO_CONFIG
+              value: "true"
+            - name: cluster.name
+              value: "opensearch-cluster"
+            - name: node.name
+              value: "opensearch-node"
+            - name: discovery.type
+              value: "single-node"
+            - name: bootstrap.memory_lock
+              value: "true"
+            - name: network.host
+              value: "0.0.0.0"
+          ports:
+            - containerPort: 9200
+            - containerPort: 9600
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+            - name: perfsonar-archive
+              mountPath: /usr/lib/perfsonar/archive
+            - name: opensearch-data
+              mountPath: /usr/share/opensearch/data
+            - name: opensearch-config
+              mountPath: /usr/share/opensearch/config
+      volumes:
+        - name: perfsonar-logstash
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-logstash
+        - name: perfsonar-archive
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-archive
+  volumeClaimTemplates:
+    - metadata:
+        name: opensearch-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ .Values.opensearch-node.persistence.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.opensearch-node.persistence.size }}
+    - metadata:
+        name: opensearch-config
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi

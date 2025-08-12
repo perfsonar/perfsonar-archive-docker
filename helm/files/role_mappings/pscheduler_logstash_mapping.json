@@ -1,5 +1,0 @@
-{
-  "roles": [ "pscheduler_logstash_role" ],
-  "enabled": true,
-  "users": [ "pscheduler_logstash" ]
-}

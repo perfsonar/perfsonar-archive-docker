@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-downloader
+  labels:
+    app: perfsonar-downloader
+  annotations:
+    # This annotation tells Helm to run this Job before installing other resources
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: perfsonar-downloader
+          image: "{{ .Values.perfsonar-downloader.image.repository }}:{{ .Values.perfsonar-downloader.image.tag }}"
+          imagePullPolicy: {{ .Values.perfsonar-downloader.image.pullPolicy }}
+          env:
+            - name: PERFSONAR_VERSION
+              value: {{ .Values.global.perfsonarVersion | quote }}
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+            - name: perfsonar-archive
+              mountPath: /usr/lib/perfsonar/archive
+            - name: perfsonar-dashboards
+              mountPath: /usr/lib/perfsonar/dashboards
+      volumes:
+        - name: perfsonar-logstash
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-logstash
+        - name: perfsonar-archive
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-archive
+        - name: perfsonar-dashboards
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-dashboards
+  backoffLimit: 4
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-logstash
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-archive
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-dashboards
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
