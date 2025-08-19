@@ -14,11 +14,11 @@ spec:
     spec:
       containers:
         - name: opensearch-dashboards
-          image: "{{ .Values.opensearch-dashboards.image.repository }}:{{ .Values.opensearch-dashboards.image.tag }}"
-          imagePullPolicy: {{ .Values.opensearch-dashboards.image.pullPolicy }}
+          image: {{ .Values.opensearchDashboards.image.repository }}:{{ .Values.opensearchDashboards.image.tag }}
+          imagePullPolicy: {{ .Values.opensearchDashboards.image.pullPolicy }}
           env:
             - name: OPENSEARCH_VERSION
-              value: {{ .Values.opensearch-dashboards.opensearchVersion | quote }}
+              value: {{ .Values.opensearchDashboards.opensearchVersion | quote }}
             - name: OPENSEARCH_HOSTS
               value: '["https://{{ include "perfsonar-archive.fullname" . }}-opensearch-node:9200"]'
             - name: SERVER_HOST

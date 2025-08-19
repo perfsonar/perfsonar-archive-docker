@@ -2,15 +2,15 @@
 global:
   perfsonarVersion: "5.2.0"
 
-perfsonar-downloader:
+perfsonarDownloader:
   image:
-    repository: perfsonar/perfsonar-downloader # Replace with your image repository
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/perfsonar-downloader
     tag: "5.2.0"
     pullPolicy: Always
 
-opensearch-node:
+opensearchNode:
   image:
-    repository: perfsonar/opensearch-node # Replace with your image repository
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/opensearch-node
     tag: 5.2.0
     pullPolicy: Always
   opensearchVersion: "2.18.0"
@@ -22,14 +22,14 @@ opensearch-node:
 
 logstash:
   image:
-    repository: perfsonar/logstash # Replace with your image repository
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/logstash
     tag: 5.2.0
     pullPolicy: Always
   logstashVersion: "8.17.3"
 
-opensearch-dashboards:
+opensearchDashboards:
   image:
-    repository: perfsonar/opensearch-dashboards # Replace with your image repository
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/opensearch-dashboards
     tag: 5.2.0
     pullPolicy: Always
   opensearchVersion: "2.18.0"

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: logstash
-          image: "{{ .Values.logstash.image.repository }}:{{ .Values.logstash.image.tag }}"
+          image: {{ .Values.logstash.image.repository }}:{{ .Values.logstash.image.tag }}
           imagePullPolicy: {{ .Values.logstash.image.pullPolicy }}
           env:
             - name: LOGSTASH_VERSION

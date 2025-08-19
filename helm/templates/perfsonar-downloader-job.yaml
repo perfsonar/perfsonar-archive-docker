@@ -15,8 +15,8 @@ spec:
       restartPolicy: Never
       containers:
         - name: perfsonar-downloader
-          image: "{{ .Values.perfsonar-downloader.image.repository }}:{{ .Values.perfsonar-downloader.image.tag }}"
-          imagePullPolicy: {{ .Values.perfsonar-downloader.image.pullPolicy }}
+          image: {{ .Values.perfsonarDownloader.image.repository }}:{{ .Values.perfsonarDownloader.image.tag }}
+          imagePullPolicy: {{ .Values.perfsonarDownloader.image.pullPolicy }}
           env:
             - name: PERFSONAR_VERSION
               value: {{ .Values.global.perfsonarVersion | quote }}

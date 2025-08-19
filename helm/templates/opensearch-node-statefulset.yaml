@@ -15,13 +15,13 @@ spec:
     spec:
       containers:
         - name: opensearch-node
-          image: "{{ .Values.opensearch-node.image.repository }}:{{ .Values.opensearch-node.image.tag }}"
-          imagePullPolicy: {{ .Values.opensearch-node.image.pullPolicy }}
+          image: {{ .Values.opensearchNode.image.repository }}:{{ .Values.opensearchNode.image.tag }}
+          imagePullPolicy: {{ .Values.opensearchNode.image.pullPolicy }}
           env:
             - name: OPENSEARCH_VERSION
-              value: {{ .Values.opensearch-node.opensearchVersion | quote }}
+              value: {{ .Values.opensearchNode.opensearchVersion | quote }}
             - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
-              value: {{ .Values.opensearch-node.initialAdminPassword | quote }}
+              value: {{ .Values.opensearchNode.initialAdminPassword | quote }}
             - name: DISABLE_INSTALL_DEMO_CONFIG
               value: "true"
             - name: cluster.name
@@ -58,10 +58,10 @@ spec:
         name: opensearch-data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ .Values.opensearch-node.persistence.storageClass }}
+        storageClassName: {{ .Values.opensearchNode.persistence.storageClass }}
         resources:
           requests:
-            storage: {{ .Values.opensearch-node.persistence.size }}
+            storage: {{ .Values.opensearchNode.persistence.size }}
     - metadata:
         name: opensearch-config
       spec:
