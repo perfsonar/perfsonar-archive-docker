@@ -3,4 +3,4 @@ name: perfsonar-archive
 description: A Helm chart for deploying the perfSONAR Archive stack
 type: application
 version: 0.1.0
-appVersion: "5.2.0"
+appVersion: "5.3.0"

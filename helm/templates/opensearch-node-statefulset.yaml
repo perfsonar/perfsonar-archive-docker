@@ -18,8 +18,6 @@ spec:
           image: {{ .Values.opensearchNode.image.repository }}:{{ .Values.opensearchNode.image.tag }}
           imagePullPolicy: {{ .Values.opensearchNode.image.pullPolicy }}
           env:
-            - name: OPENSEARCH_VERSION
-              value: {{ .Values.opensearchNode.opensearchVersion | quote }}
             - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
               value: {{ .Values.opensearchNode.initialAdminPassword | quote }}
             - name: DISABLE_INSTALL_DEMO_CONFIG
@@ -38,21 +36,8 @@ spec:
             - containerPort: 9200
             - containerPort: 9600
           volumeMounts:
-            - name: perfsonar-logstash
-              mountPath: /usr/lib/perfsonar/logstash
-            - name: perfsonar-archive
-              mountPath: /usr/lib/perfsonar/archive
             - name: opensearch-data
               mountPath: /usr/share/opensearch/data
-            - name: opensearch-config
-              mountPath: /usr/share/opensearch/config
-      volumes:
-        - name: perfsonar-logstash
-          persistentVolumeClaim:
-            claimName: {{ include "perfsonar-archive.fullname" . }}-logstash
-        - name: perfsonar-archive
-          persistentVolumeClaim:
-            claimName: {{ include "perfsonar-archive.fullname" . }}-archive
   volumeClaimTemplates:
     - metadata:
         name: opensearch-data
@@ -62,10 +47,3 @@ spec:
         resources:
           requests:
             storage: {{ .Values.opensearchNode.persistence.size }}
-    - metadata:
-        name: opensearch-config
-      spec:
-        accessModes: [ "ReadWriteOnce" ]
-        resources:
-          requests:
-            storage: 1Gi

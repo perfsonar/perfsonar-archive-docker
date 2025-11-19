@@ -17,27 +17,9 @@ spec:
           image: {{ .Values.opensearchDashboards.image.repository }}:{{ .Values.opensearchDashboards.image.tag }}
           imagePullPolicy: {{ .Values.opensearchDashboards.image.pullPolicy }}
           env:
-            - name: OPENSEARCH_VERSION
-              value: {{ .Values.opensearchDashboards.opensearchVersion | quote }}
             - name: OPENSEARCH_HOSTS
               value: '["https://{{ include "perfsonar-archive.fullname" . }}-opensearch-node:9200"]'
             - name: SERVER_HOST
               value: "0.0.0.0"
           ports:
             - containerPort: 5601
-          volumeMounts:
-            - name: perfsonar-archive
-              mountPath: /usr/lib/perfsonar/archive
-            - name: perfsonar-dashboards
-              mountPath: /usr/lib/perfsonar/dashboards
-            - name: dashboards-config
-              mountPath: /usr/share/opensearch-dashboards/config/
-      volumes:
-        - name: perfsonar-archive
-          persistentVolumeClaim:
-            claimName: {{ include "perfsonar-archive.fullname" . }}-archive
-        - name: perfsonar-dashboards
-          persistentVolumeClaim:
-            claimName: {{ include "perfsonar-archive.fullname" . }}-dashboards
-        - name: dashboards-config
-          emptyDir: {}
