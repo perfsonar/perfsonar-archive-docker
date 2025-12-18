@@ -1,0 +1,124 @@
+---
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+  name: {{ .Release.Name }}-archive-libs-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: 
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+
+---
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+  name: {{ .Release.Name }}-dashboards-libs-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: 
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+
+---
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+  name: {{ .Release.Name }}-logstash-libs-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: 
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+
+---
+apiVersion: v1
+data:
+  pre_script: >-
+    CiMhL2Jpbi9iYXNoCgphcHQtZ2V0IHVwZGF0ZQphcHQtZ2V0IGluc3RhbGwgLXkgZ2l0IG1ha2UgbWF2ZW4KCmdpdCBjbG9uZSAtLWJyYW5jaCA1LjIuMCBodHRwczovL2dpdGh1Yi5jb20vcGVyZnNvbmFyL2xvZ3N0YXNoLmdpdCBsb2dzdGFzaC1naXQgCm1ha2UgLUMgbG9nc3Rhc2gtZ2l0L3BlcmZzb25hci1sb2dzdGFzaC9wZXJmc29uYXItbG9nc3Rhc2ggUk9PVFBBVEg9L3Vzci9saWIvcGVyZnNvbmFyL2xvZ3N0YXNoIENPTkZJR1BBVEg9L3Vzci9saWIvcGVyZnNvbmFyL2xvZ3N0YXNoIFNZU1RFTURQQVRIPS9ldGMvc3lzdGVtZC9zeXN0ZW0gaW5zdGFsbApjaG93biAtUiAxMDAwOjEwMDAgL3Vzci9saWIvcGVyZnNvbmFyL2xvZ3N0YXNoCgpSVU4gZ2l0IGNsb25lIC0tYnJhbmNoIDUuMi4wIGh0dHBzOi8vZ2l0aHViLmNvbS9wZXJmc29uYXIvYXJjaGl2ZS5naXQgYXJjaGl2ZS1naXQgCm1ha2UgLUMgYXJjaGl2ZS1naXQvcGVyZnNvbmFyLWFyY2hpdmUvcGVyZnNvbmFyLWFyY2hpdmUgUEVSRlNPTkFSLVJPT1RQQVRIPS91c3IvbGliL3BlcmZzb25hci9hcmNoaXZlIExPR1NUQVNILVJPT1RQQVRIPS91c3IvbGliL3BlcmZzb25hci9sb2dzdGFzaCBIVFRQRC1DT05GSUdQQVRIPS9ldGMvaHR0cCBTWVNURU1ELUNPTkZJUEFUSD0vZXRjL3N5c3RlbWQvc3lzdGVtIEJJTlBBVEg9L3Vzci9iaW4gaW5zdGFsbCAKY2hvd24gLVIgMTAwMDoxMDAwIC91c3IvbGliL3BlcmZzb25hci9hcmNoaXZlCiAgICAKbWFrZSAtQyBhcmNoaXZlLWdpdC9wZXJmc29uYXItZGFzaGJvYXJkcy9wZXJmc29uYXItZGFzaGJvYXJkcyBEQVNIQk9BUkRTLVJPT1RQQVRIPS91c3IvbGliL3BlcmZzb25hci9kYXNoYm9hcmRzIEhUVFBELUNPTkZJR1BBVEg9L2V0Yy9odHRwIGluc3RhbGwKY2hvd24gLVIgMTAwMDoxMDAwIC91c3IvbGliL3BlcmZzb25hci9kYXNoYm9hcmRzCg== 
+kind: ConfigMap
+metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+  name: perfosnar-preinstall-script
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded
+  labels:
+    job-name: hello
+  name: hello
+spec:
+  backoffLimit: 6
+  parallelism: 1
+  podReplacementPolicy: TerminatingOrFailed
+  suspend: false
+  template:
+    spec:
+      containers:
+        - args:
+            - /usr/local/bin/downloader.sh
+          command:
+            - /bin/bash
+          image: debian:stable
+          imagePullPolicy: IfNotPresent
+          name: perfsonar-preinstall
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          volumeMounts:
+            - mountPath: /usr/local/bin/downloader.sh
+              name: perfosnar-preinstall-script
+              subPath: pre_script   
+            - mountPath: /usr/lib/perfsonar/logstash
+              name: {{ .Release.Name }}-logstash-libs-pvc
+            - mountPath: /usr/lib/perfsonar/archive
+              name: {{ .Release.Name }}-archive-libs-pvc
+            - mountPath: /usr/lib/perfsonar/dashboards
+              name: {{ .Release.Name }}-dashboards-libs-pvc
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: perfosnar-preinstall-script
+          _type: configMap
+          configMap:
+            name: perfosnar-preinstall-script
+        - name: {{ .Release.Name }}-archive-libs-pvc
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-archive-libs-pvc
+        - name: {{ .Release.Name }}-dashboards-libs-pvc
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-dashboards-libs-pvc
+        - name: {{ .Release.Name }}-logstash-libs-pvc
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-logstash-libs-pvc
