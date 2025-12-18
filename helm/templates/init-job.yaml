@@ -113,7 +113,6 @@ spec:
       terminationGracePeriodSeconds: 30
       volumes:
         - name: perfosnar-preinstall-script
-          _type: configMap
           configMap:
             name: perfosnar-preinstall-script
         - name: {{ .Release.Name }}-archive-libs-pvc
