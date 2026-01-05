@@ -1,6 +1,21 @@
 #!/bin/bash
 set -e
 
+# Set the perfSONAR version (can be overridden at runtime)
+PERFSONAR_VERSION=5.2.0
+
+# Define directories
+PS_LOGSTASH_DIR=/usr/lib/perfsonar/logstash
+PS_ARCHIVE_DIR=/usr/lib/perfsonar/archive
+
+# Clone and build archive and dashboards
+git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/archive.git archive-git && \
+    make -C archive-git/perfsonar-archive/perfsonar-archive \
+        PERFSONAR-ROOTPATH=$PS_ARCHIVE_DIR LOGSTASH-ROOTPATH=$PS_LOGSTASH_DIR \
+        HTTPD-CONFIGPATH=/etc/http SYSTEMD-CONFIGPATH=/etc/systemd/system BINPATH=/usr/bin install && \
+    chown -R 1000:1000 $PS_ARCHIVE_DIR && \
+
+
 if [ ! -f /usr/share/opensearch/data/.initialized ]; then
     # Disable htpasswd in secure_pre.sh
     sed -i '/htpasswd -bc/s/^/#/' /usr/lib/perfsonar/archive/perfsonar-scripts/pselastic_secure_pre.sh

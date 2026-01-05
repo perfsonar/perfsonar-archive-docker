@@ -4,7 +4,7 @@ FROM opensearchproject/opensearch-dashboards:${OPENSEARCH_VERSION}
 USER root
 
 # Install required dependencies
-RUN dnf update -y && dnf install -y jq
+RUN dnf update -y && dnf install -y jq git make
 
 # Install gosu to allow privilege dropping
 RUN curl -L -o /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/1.14/gosu-amd64" && \

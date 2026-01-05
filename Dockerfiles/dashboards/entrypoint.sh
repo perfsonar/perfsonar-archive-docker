@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+PERFSONAR_VERSION=5.2.0
+
+# Define directories
+PS_DASHBOARDS_DIR=/usr/lib/perfsonar/dashboards
+
+# Clone and build logstash
+git clone --branch $PERFSONAR_VERSION https://github.com/perfsonar/archive.git archive-git && \
+    make -C archive-git/perfsonar-dashboards/perfsonar-dashboards \
+        DASHBOARDS-ROOTPATH=$PS_DASHBOARDS_DIR HTTPD-CONFIGPATH=/etc/http install && \
+    chown -R 1000:1000 $PS_DASHBOARDS_DIR
+
 # do not run this command
 sed -i '/server.basePath/s/^/#/' /usr/lib/perfsonar/dashboards/dashboards-scripts/dashboards_secure_pre.sh
 

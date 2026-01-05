@@ -4,8 +4,8 @@ global:
 
 opensearchNode:
   image:
-    repository: ghcr.io/perfsonar/opensearch-node
-    tag: 5.3.0
+    repository: docker-proxy.grena.ge/perfsonar-archive
+    tag: 5.2
     pullPolicy: Always
   opensearchVersion: "2.19.4"
   initialAdminPassword: "perfSONAR123!"
@@ -22,9 +22,10 @@ logstash:
   logstashVersion: "8.17.3"
   opensearch_output_user: "pscheduler_logstash"
 
+
 opensearchDashboards:
   image:
-    repository: ghcr.io/perfsonar/opensearch-dashboards
-    tag: 5.3.0
+    repository: docker-proxy.grena.ge/perfsonar-dashboards
+    tag: 5.2
     pullPolicy: Always
   opensearchVersion: "2.19.4"
