@@ -26,7 +26,7 @@ spec:
             - name: RATE_CACHE_EXPIRES
               value: "600"
             - name: opensearch_output_host
-              value: "{{ include "perfsonar-archive.fullname" . }}-opensearch-node"
+              value: "https://{{ include "perfsonar-archive.fullname" . }}-opensearch-node"
             - name: opensearch_output_user
               value: {{ .Values.logstash.opensearch_output_user }}
           ports:
