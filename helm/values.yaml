@@ -20,6 +20,7 @@ logstash:
     pullPolicy: Always
   logstashVersion: "8.17.3"
   opensearch_output_user: "pscheduler_logstash"
+  opensearch_output_password: ""
 
 
 opensearchDashboards:

@@ -32,6 +32,11 @@ spec:
               value: "true"
             - name: network.host
               value: "0.0.0.0"
+            - name: LOGSTASH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "perfsonar-archive.fullname" . }}-logstash-credentials
+                  key: password
           ports:
             - containerPort: 9200
             - containerPort: 9600

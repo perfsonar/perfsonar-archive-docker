@@ -29,5 +29,10 @@ spec:
               value: "https://{{ include "perfsonar-archive.fullname" . }}-opensearch-node"
             - name: opensearch_output_user
               value: {{ .Values.logstash.opensearch_output_user }}
+            - name: opensearch_output_password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "perfsonar-archive.fullname" . }}-logstash-credentials
+                  key: password
           ports:
             - containerPort: 11283
