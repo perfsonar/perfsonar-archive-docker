@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: shared-filesystem
+  resources:
+    requests:
+      storage: 1Gi
