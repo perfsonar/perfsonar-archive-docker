@@ -23,3 +23,10 @@ spec:
               value: "0.0.0.0"
           ports:
             - containerPort: 5601
+          volumeMounts:
+            - name: opensearch-shared
+              mountPath: /etc/perfsonar/opensearch
+      volumes:
+        - name: opensearch-shared
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
