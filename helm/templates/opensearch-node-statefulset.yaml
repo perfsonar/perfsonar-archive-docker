@@ -43,8 +43,14 @@ spec:
           volumeMounts:
             - name: opensearch-data
               mountPath: /usr/share/opensearch/data
-            - name: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
+            - name: opensearch-shared
               mountPath: /etc/perfsonar/opensearch
+
+      volumes:
+        - name: opensearch-shared
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
+            
   volumeClaimTemplates:
     - metadata:
         name: opensearch-data
