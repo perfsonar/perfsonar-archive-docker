@@ -25,7 +25,7 @@ spec:
             - containerPort: 5601
           volumeMounts:
             - name: opensearch-shared
-              mountPath: /etc/perfsonar/opensearch
+              mountPath: /usr/lib/perfsonar/archive/
       volumes:
         - name: opensearch-shared
           persistentVolumeClaim:
