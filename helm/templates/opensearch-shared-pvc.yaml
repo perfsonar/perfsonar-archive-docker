@@ -5,9 +5,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-{{- if .Values.persistence.storageClassName }}
-  storageClassName: {{ .Values.persistence.storageClassName | quote }}
-{{- end }}
+  storageClassName: {{ .Values.opensearchNode.persistence.storageClass }}
   resources:
     requests:
       storage: 10Mi
