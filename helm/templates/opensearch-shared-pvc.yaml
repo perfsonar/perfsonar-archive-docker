@@ -4,8 +4,10 @@ metadata:
   name: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
 spec:
   accessModes:
-    - ReadWriteMany
-  storageClassName: shared-filesystem
+    - ReadWriteOnce
+{{- if .Values.persistence.storageClassName }}
+  storageClassName: {{ .Values.persistence.storageClassName | quote }}
+{{- end }}
   resources:
     requests:
-      storage: 1Gi
+      storage: {{ .Values.persistence.size | default "1Mi" }}
