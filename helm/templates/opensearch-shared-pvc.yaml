@@ -4,7 +4,7 @@ metadata:
   name: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   storageClassName: {{ .Values.opensearchNode.persistence.storageClass }}
   resources:
     requests:
