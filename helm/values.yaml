@@ -12,7 +12,7 @@ opensearchNode:
   persistence:
     enabled: true
     size: 10Gi
-    storageClassName: shared-filesystem
+    storageClassName: ""
   
 
 logstash:
