@@ -7,27 +7,44 @@ opensearchNode:
     repository: docker-proxy.grena.ge/perfsonar-archive
     tag: 5.2
     pullPolicy: Always
+
   opensearchVersion: "2.19.4"
   initialAdminPassword: "perfSONAR123!"
+
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: ""
-  
+
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - perfsonar
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - myRelease
+          topologyKey: kubernetes.io/hostname
 
 logstash:
   image:
     repository: ghcr.io/perfsonar/logstash
     tag: 5.2.0
     pullPolicy: Always
+
   logstashVersion: "8.17.3"
   opensearch_output_user: "pscheduler_logstash"
   opensearch_output_password: ""
-
 
 opensearchDashboards:
   image:
     repository: docker-proxy.grena.ge/perfsonar-dashboards
     tag: 5.2
     pullPolicy: Always
+
   opensearchVersion: "2.19.4"
