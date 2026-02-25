@@ -1,32 +1,16 @@
 services:
-  perfsonar-downloader:
-    build: 
-      context: ./Dockerfiles
-      dockerfile: Dockerfile-downloader
-    container_name: perfsonar-downloader
-    volumes:
-      - perfsonar_logstash:/usr/lib/perfsonar/logstash
-      - perfsonar_archive:/usr/lib/perfsonar/archive
-      - perfsonar_dashboards:/usr/lib/perfsonar/dashboards
-    environment:
-      - PERFSONAR_VERSION=5.2.0
-    restart: "no" # This container runs once to download & install
-  
   opensearch-node:
-    build:
-      context: ./Dockerfiles/archive
-      dockerfile: Dockerfile
+    image: ghcr.io/perfsonar/opensearch-node:5.3.0
     container_name: opensearch-node
-    depends_on:
-      - perfsonar-downloader
+    restart: always
+    platform: linux/amd64
     environment:
-      OPENSEARCH_VERSION: ${OPENSEARCH_VERSION}
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: "perfSONAR123!"
-      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: true
       cluster.name: opensearch-cluster
       node.name: opensearch-node
       discovery.type: single-node
-      bootstrap.memory_lock: "true"            # disables swapping
+      bootstrap.memory_lock: true              # disables swapping
       network.host: "0.0.0.0"                  # required for non-demo config
     ulimits:
       memlock:
@@ -36,69 +20,92 @@ services:
         soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
         hard: 65536
     volumes:
-      - perfsonar_logstash:/usr/lib/perfsonar/logstash
-      - perfsonar_archive:/usr/lib/perfsonar/archive
-      - opensearch_data:/usr/share/opensearch/data
-      - opensearch_config:/usr/share/opensearch/config
+      - opensearch-data:/usr/share/opensearch/data
+      - perfsonar-opensearch:/etc/perfsonar/opensearch
+      - logstash-env:/env
     ports:
       - "9200:9200"
       - "9600:9600" # required for Performance Analyzer
-    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --insecure --silent --fail https://localhost:9200/_cluster/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    
 
-  logstash:
-    build: 
-      context: ./Dockerfiles/logstash
-      dockerfile: Dockerfile
+  perfsonar-logstash:
+    image: ghcr.io/perfsonar/logstash:5.3.0
     container_name: perfsonar-logstash
-    depends_on:
-      - perfsonar-downloader
-      - opensearch-node
+    restart: always
+    platform: linux/amd64
     environment:
-      LOGSTASH_VERSION: ${LOGSTASH_VERSION}
-      MONITORING_ENABLED: "false"
+      MONITORING_ENABLED: false
       LOG_LEVEL: info
       RATE_CACHE_MAX_ENTRIES: 10000000
       RATE_CACHE_EXPIRES: 600
+      opensearch_output_host: "https://opensearch-node:9200"
+      opensearch_output_user: pscheduler_logstash
+    entrypoint: >
+      /bin/sh -c "
+        export $(cat /env/logstash.env);
+        exec /usr/local/bin/docker-entrypoint
+      "
     logging:
       options:
         max-size: "10m"
         max-file: "10"
     volumes:
-      - perfsonar_logstash:/usr/lib/perfsonar/logstash
-      - logstash_config:/usr/share/logstash/config/
+      - logstash-env:/env
     ports:
       - 11283:11283
     expose:
       - "11283"
-    restart: always
+    depends_on:
+      opensearch-node:
+        condition: service_healthy
 
   opensearch-dashboards:
-    build:
-      context: ./Dockerfiles/dashboards
-      dockerfile: Dockerfile
+    profiles: ["dashboards"]
+    image: ghcr.io/perfsonar/opensearch-dashboards:5.3.0
     container_name: opensearch-dashboards
-    depends_on:
-      - perfsonar-downloader
-      - opensearch-node
+    restart: always
+    platform: linux/amd64
     environment:
-      OPENSEARCH_VERSION: ${OPENSEARCH_VERSION}
       OPENSEARCH_HOSTS: '["https://opensearch-node:9200"]' # must be a string with no spaces when specified as an environment variable
       SERVER_HOST: "0.0.0.0"
     volumes:
-      - perfsonar_archive:/usr/lib/perfsonar/archive
-      - perfsonar_dashboards:/usr/lib/perfsonar/dashboards
-      - dashboards_config:/usr/share/opensearch-dashboards/config/
+      - perfsonar-opensearch:/etc/perfsonar/opensearch/
     ports:
       - 5601:5601
     expose:
       - "5601"
+    depends_on:
+      opensearch-node:
+        condition: service_healthy
+
+  perfsonar-grafana:
+    profiles: ["grafana"]
+    image: ghcr.io/perfsonar/grafana:5.3.0
+    container_name: perfsonar-grafana
     restart: always
+    environment:
+      - OPENSEARCH_URL=https://opensearch-node:9200
+      - OPENSEARCH_VERSION=2.19.4
+      - GF_INSTALL_PLUGINS=grafana-opensearch-datasource,esnet-matrix-panel
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
+      - GF_PATHS_PROVISIONING=/usr/lib/perfsonar/grafana/provisioning
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    ports:
+       - 3000:3000
+    expose:
+      - "3000"
+    depends_on:
+      opensearch-node:
+        condition: service_healthy
 
 volumes:
-  perfsonar_logstash:
-  perfsonar_archive:
-  perfsonar_dashboards:
-  opensearch_data:
-  opensearch_config:
-  logstash_config:
-  dashboards_config:
+  opensearch-data:
+  perfsonar-opensearch:
+  logstash-env:
