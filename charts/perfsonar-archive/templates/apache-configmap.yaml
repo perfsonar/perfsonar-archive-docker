@@ -66,9 +66,12 @@ data:
       ProxyPass        {{ .Values.apache.logstash.path }} {{ .Values.apache.logstash.scheme }}://{{ $logstashServiceName }}:{{ .Values.apache.logstash.servicePort }}
       ProxyPassReverse {{ .Values.apache.logstash.path }} {{ .Values.apache.logstash.scheme }}://{{ $logstashServiceName }}:{{ .Values.apache.logstash.servicePort }}
 
-      ProxyPass        {{ .Values.apache.dashboards.path }} {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}
-      ProxyPassReverse {{ .Values.apache.dashboards.path }} {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}
+      ProxyPass        {{ .Values.apache.dashboards.path }}/ {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}{{ .Values.apache.dashboards.path }}/
+      ProxyPassReverse {{ .Values.apache.dashboards.path }}/ {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}{{ .Values.apache.dashboards.path }}/
 
+      ProxyPass        {{ .Values.apache.dashboards.path }} {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}{{ .Values.apache.dashboards.path }}
+      ProxyPassReverse {{ .Values.apache.dashboards.path }} {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}{{ .Values.apache.dashboards.path }}
+      
       {{- if .Values.apache.extraApacheConfig }}
       {{ .Values.apache.extraApacheConfig | nindent 6 }}
       {{- end }}
