@@ -6,6 +6,6 @@ spec:
   selector:
     app: opensearch-dashboards
   ports:
-    - port: 5601
+    - port: {{ .Values.opensearchDashboards.service.port }}
       targetPort: 5601
-  type: LoadBalancer # Or NodePort, ClusterIP depending on your needs
+  type: {{ .Values.opensearchDashboards.service.type }}

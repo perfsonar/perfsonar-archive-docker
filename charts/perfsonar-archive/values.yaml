@@ -7,15 +7,12 @@ opensearchNode:
     repository: docker-proxy.grena.ge/perfsonar-archive
     tag: 5.2
     pullPolicy: Always
-
   opensearchVersion: "2.19.4"
   initialAdminPassword: "perfSONAR123!"
-
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: ""
-
   affinity:
     podAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -36,7 +33,6 @@ logstash:
     repository: ghcr.io/perfsonar/logstash
     tag: 5.2.0
     pullPolicy: Always
-
   logstashVersion: "8.17.3"
   opensearch_output_user: "pscheduler_logstash"
   opensearch_output_password: ""
@@ -46,5 +42,54 @@ opensearchDashboards:
     repository: docker-proxy.grena.ge/perfsonar-dashboards
     tag: 5.2
     pullPolicy: Always
-
   opensearchVersion: "2.19.4"
+  service:
+    type: ClusterIP
+    port: 5601
+  basePath: "/opensearchdash"
+  rewriteBasePath: true
+
+apache:
+  enabled: true
+
+  image:
+    repository: httpd
+    tag: "2.4"
+    pullPolicy: IfNotPresent
+
+  initImage:
+    repository: alpine
+    tag: "3.20"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: LoadBalancer
+    port: 8443
+    targetPort: 8443
+
+  tls:
+    enabled: true
+    certFile: "/usr/local/apache2/conf/tls/tls.crt"
+    keyFile: "/usr/local/apache2/conf/tls/tls.key"
+    subject: "/C=GE/ST=Tbilisi/L=Tbilisi/O=perfSONAR/OU=Archive/CN=localhost"
+    days: 3650
+
+  opensearch:
+    path: /opensearch
+    serviceName: ""
+    servicePort: 9200
+    scheme: https
+
+  logstash:
+    path: /logstash
+    serviceName: ""
+    servicePort: 11283
+    scheme: http
+
+  dashboards:
+    path: /opensearchdash
+    serviceName: ""
+    servicePort: 5601
+    scheme: http
+
+  extraApacheConfig: ""

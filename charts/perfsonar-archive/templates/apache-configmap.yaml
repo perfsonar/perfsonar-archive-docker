@@ -1,0 +1,70 @@
+{{- if .Values.apache.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-apache-config
+data:
+  httpd.conf: |
+    ServerName localhost
+    ServerRoot "/usr/local/apache2"
+    PidFile /tmp/httpd.pid
+
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_connect_module modules/mod_proxy_connect.so
+    LoadModule ssl_module modules/mod_ssl.so
+    LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule rewrite_module modules/mod_rewrite.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule dir_module modules/mod_dir.so
+    LoadModule mime_module modules/mod_mime.so
+    LoadModule alias_module modules/mod_alias.so
+    LoadModule log_config_module modules/mod_log_config.so
+
+    TypesConfig conf/mime.types
+
+    ErrorLog /proc/self/fd/2
+    CustomLog /proc/self/fd/1 combined
+
+    Listen {{ .Values.apache.service.targetPort }}
+
+    SSLProxyEngine on
+    SSLProxyVerify none
+    SSLProxyCheckPeerCN off
+    SSLProxyCheckPeerName off
+    SSLProxyCheckPeerExpire off
+
+    {{- $opensearchServiceName := default (printf "%s-opensearch-node" (include "perfsonar-archive.fullname" .)) .Values.apache.opensearch.serviceName }}
+    {{- $logstashServiceName := default (printf "%s-logstash" (include "perfsonar-archive.fullname" .)) .Values.apache.logstash.serviceName }}
+    {{- $dashboardsServiceName := default (printf "%s-opensearch-dashboards" (include "perfsonar-archive.fullname" .)) .Values.apache.dashboards.serviceName }}
+
+    <VirtualHost *:{{ .Values.apache.service.targetPort }}>
+      SSLEngine on
+      SSLCertificateFile {{ .Values.apache.tls.certFile }}
+      SSLCertificateKeyFile {{ .Values.apache.tls.keyFile }}
+
+      ProxyPreserveHost On
+      ProxyRequests Off
+
+      <Proxy *>
+        Require all granted
+      </Proxy>
+
+      ProxyPass        {{ .Values.apache.opensearch.path }} {{ .Values.apache.opensearch.scheme }}://{{ $opensearchServiceName }}:{{ .Values.apache.opensearch.servicePort }}
+      ProxyPassReverse {{ .Values.apache.opensearch.path }} {{ .Values.apache.opensearch.scheme }}://{{ $opensearchServiceName }}:{{ .Values.apache.opensearch.servicePort }}
+
+      ProxyPass        {{ .Values.apache.logstash.path }} {{ .Values.apache.logstash.scheme }}://{{ $logstashServiceName }}:{{ .Values.apache.logstash.servicePort }}
+      ProxyPassReverse {{ .Values.apache.logstash.path }} {{ .Values.apache.logstash.scheme }}://{{ $logstashServiceName }}:{{ .Values.apache.logstash.servicePort }}
+
+      ProxyPass        {{ .Values.apache.dashboards.path }} {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}
+      ProxyPassReverse {{ .Values.apache.dashboards.path }} {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}
+
+      {{- if .Values.apache.extraApacheConfig }}
+      {{ .Values.apache.extraApacheConfig | nindent 6 }}
+      {{- end }}
+    </VirtualHost>
+{{- end }}
