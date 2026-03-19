@@ -71,7 +71,6 @@ apache:
     enabled: true
     certFile: "/usr/local/apache2/conf/tls/tls.crt"
     keyFile: "/usr/local/apache2/conf/tls/tls.key"
-    subject: "/C=GE/ST=Tbilisi/L=Tbilisi/O=perfSONAR/OU=Archive/CN=localhost"
     days: 3650
 
   opensearch:

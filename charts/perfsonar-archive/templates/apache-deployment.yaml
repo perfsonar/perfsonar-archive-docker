@@ -25,11 +25,33 @@ spec:
             - |
               apk add --no-cache openssl
               mkdir -p /tls
+
+              cat >/tmp/openssl.cnf <<'EOF'
+              [req]
+              distinguished_name = dn
+              x509_extensions = v3_req
+              prompt = no
+
+              [dn]
+              CN = localhost
+
+              [v3_req]
+              basicConstraints = CA:FALSE
+              keyUsage = digitalSignature, keyEncipherment
+              extendedKeyUsage = serverAuth
+              subjectAltName = @alt_names
+
+              [alt_names]
+              DNS.1 = localhost
+              EOF
+
               openssl req -x509 -nodes -newkey rsa:2048 \
                 -keyout /tls/tls.key \
                 -out /tls/tls.crt \
                 -days {{ .Values.apache.tls.days }} \
-                -subj '{{ .Values.apache.tls.subject }}'
+                -config /tmp/openssl.cnf \
+                -extensions v3_req
+
               chmod 600 /tls/tls.key
               chmod 644 /tls/tls.crt
           volumeMounts:

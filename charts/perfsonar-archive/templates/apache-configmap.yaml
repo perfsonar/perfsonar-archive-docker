@@ -32,6 +32,12 @@ data:
 
     Listen {{ .Values.apache.service.targetPort }}
 
+    User daemon
+    Group daemon
+
+    SSLSessionCache shmcb:/usr/local/apache2/logs/ssl_scache(512000)
+    SSLSessionCacheTimeout 300
+
     SSLProxyEngine on
     SSLProxyVerify none
     SSLProxyCheckPeerCN off
