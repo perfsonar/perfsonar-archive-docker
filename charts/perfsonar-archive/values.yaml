@@ -46,8 +46,6 @@ opensearchDashboards:
   service:
     type: ClusterIP
     port: 5601
-  basePath: "/opensearchdash"
-  rewriteBasePath: true
 
 apache:
   enabled: true
@@ -83,12 +81,6 @@ apache:
     path: /logstash
     serviceName: ""
     servicePort: 11283
-    scheme: http
-
-  dashboards:
-    path: /opensearchdash
-    serviceName: ""
-    servicePort: 5601
     scheme: http
 
   extraApacheConfig: ""

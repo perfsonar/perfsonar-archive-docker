@@ -21,10 +21,6 @@ spec:
               value: '["https://{{ include "perfsonar-archive.fullname" . }}-opensearch-node:9200"]'
             - name: SERVER_HOST
               value: "0.0.0.0"
-#            - name: SERVER_BASEPATH
-#              value: {{ .Values.opensearchDashboards.basePath | quote }}
-#            - name: SERVER_REWRITEBASEPATH
-#              value: {{ ternary "true" "false" .Values.opensearchDashboards.rewriteBasePath | quote }}
           ports:
             - containerPort: 5601
           volumeMounts:
