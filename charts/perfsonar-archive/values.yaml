@@ -83,4 +83,9 @@ apache:
     servicePort: 11283
     scheme: http
 
+  dashboards:
+    serviceName: ""
+    servicePort: 5601
+    scheme: http  
+
   extraApacheConfig: ""
