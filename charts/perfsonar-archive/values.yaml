@@ -94,6 +94,12 @@ apache:
     keyFile: "/usr/local/apache2/conf/tls/tls.key"
     days: 3650
 
+  grafana:
+    path: /grafana
+    serviceName: ""
+    servicePort: 3000
+    scheme: http
+
   opensearch:
     path: /opensearch
     serviceName: ""
@@ -111,10 +117,5 @@ apache:
     servicePort: 5601
     scheme: http  
 
-  grafana:
-    path: /grafana
-    serviceName: ""
-    servicePort: 3000
-    scheme: http
 
   extraApacheConfig: ""

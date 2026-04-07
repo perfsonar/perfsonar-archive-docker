@@ -44,10 +44,10 @@ data:
     SSLProxyCheckPeerName off
     SSLProxyCheckPeerExpire off
 
+    {{- $grafanaServiceName := default (printf "%s-grafana" (include "perfsonar-archive.fullname" .)) .Values.apache.grafana.serviceName }}
     {{- $opensearchServiceName := default (printf "%s-opensearch-node" (include "perfsonar-archive.fullname" .)) .Values.apache.opensearch.serviceName }}
     {{- $logstashServiceName := default (printf "%s-logstash" (include "perfsonar-archive.fullname" .)) .Values.apache.logstash.serviceName }}
     {{- $dashboardsServiceName := default (printf "%s-opensearch-dashboards" (include "perfsonar-archive.fullname" .)) .Values.apache.dashboards.serviceName }}
-    {{- $grafanaServiceName := default (printf "%s-grafana" (include "perfsonar-archive.fullname" .)) .Values.apache.grafana.serviceName }}
 
     <VirtualHost *:{{ .Values.apache.service.targetPort }}>
       SSLEngine on
@@ -61,6 +61,12 @@ data:
         Require all granted
       </Proxy>
 
+      ProxyPass {{ .Values.apache.grafana.path }}/ {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana/
+      ProxyPassReverse {{ .Values.apache.grafana.path }}/ {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana/
+
+      ProxyPass {{ .Values.apache.grafana.path }} {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana
+      ProxyPassReverse {{ .Values.apache.grafana.path }} {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana
+
       ProxyPass        {{ .Values.apache.opensearch.path }} {{ .Values.apache.opensearch.scheme }}://{{ $opensearchServiceName }}:{{ .Values.apache.opensearch.servicePort }}
       ProxyPassReverse {{ .Values.apache.opensearch.path }} {{ .Values.apache.opensearch.scheme }}://{{ $opensearchServiceName }}:{{ .Values.apache.opensearch.servicePort }}
 
@@ -69,13 +75,7 @@ data:
 
       ProxyPass        / {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}/
       ProxyPassReverse / {{ .Values.apache.dashboards.scheme }}://{{ $dashboardsServiceName }}:{{ .Values.apache.dashboards.servicePort }}/
-
-      ProxyPass {{ .Values.apache.grafana.path }}/ {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana/
-      ProxyPassReverse {{ .Values.apache.grafana.path }}/ {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana/
-
-      ProxyPass {{ .Values.apache.grafana.path }} {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana
-      ProxyPassReverse {{ .Values.apache.grafana.path }} {{ .Values.apache.grafana.scheme }}://{{ $grafanaServiceName }}:{{ .Values.apache.grafana.servicePort }}/grafana
-
+      
       {{- if .Values.apache.extraApacheConfig }}
       {{ .Values.apache.extraApacheConfig | nindent 6 }}
       {{- end }}
