@@ -1,0 +1,15 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-grafana
+spec:
+  selector:
+    app: grafana
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.grafana.service.port }}
+      targetPort: {{ .Values.grafana.service.targetPort }}
+  type: {{ .Values.grafana.service.type }}
+{{- end }}

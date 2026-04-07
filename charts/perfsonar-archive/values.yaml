@@ -47,6 +47,29 @@ opensearchDashboards:
     type: ClusterIP
     port: 5601
 
+grafana:
+  enabled: true
+
+  image:
+    repository: ghcr.io/perfsonar/grafana
+    tag: "5.3.0"
+    pullPolicy: Always
+
+  opensearchVersion: "2.19.4"
+  plugins: "grafana-opensearch-datasource,esnet-matrix-panel"
+  disableSanitizeHtml: "true"
+  provisioningPath: "/usr/lib/perfsonar/grafana/provisioning"
+
+  server:
+    rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    serveFromSubPath: "true"
+
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+
+
 apache:
   enabled: true
 
@@ -87,5 +110,11 @@ apache:
     serviceName: ""
     servicePort: 5601
     scheme: http  
+
+  grafana:
+    path: /grafana
+    serviceName: ""
+    servicePort: 3000
+    scheme: http
 
   extraApacheConfig: ""
