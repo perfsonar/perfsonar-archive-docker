@@ -31,7 +31,7 @@ opensearchNode:
 logstash:
   image:
     repository: ghcr.io/perfsonar/logstash
-    tag: 5.2.0
+    tag: 5.3.0
     pullPolicy: Always
   logstashVersion: "8.17.3"
   opensearch_output_user: "pscheduler_logstash"
