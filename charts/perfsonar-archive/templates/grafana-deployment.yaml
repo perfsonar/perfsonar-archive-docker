@@ -1,0 +1,47 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: grafana
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: grafana
+          image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.grafana.image.pullPolicy }}
+          env:
+            - name: OPENSEARCH_URL
+              value: "https://{{ include "perfsonar-archive.fullname" . }}-opensearch-node:9200"
+            - name: OPENSEARCH_VERSION
+              value: {{ .Values.grafana.opensearchVersion | quote }}
+            - name: GF_INSTALL_PLUGINS
+              value: {{ .Values.grafana.plugins | quote }}
+            - name: GF_PANELS_DISABLE_SANITIZE_HTML
+              value: {{ .Values.grafana.disableSanitizeHtml | quote }}
+            - name: GF_PATHS_PROVISIONING
+              value: {{ .Values.grafana.provisioningPath | quote }}
+            - name: GF_SERVER_ROOT_URL
+              value: {{ .Values.grafana.server.rootUrl | quote }}
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: {{ .Values.grafana.server.serveFromSubPath | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.grafana.service.targetPort }}
+          volumeMounts:
+            - name: opensearch-shared
+              mountPath: /usr/lib/perfsonar/archive/
+      volumes:
+        - name: opensearch-shared
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-opensearch-shared
+{{- end }}

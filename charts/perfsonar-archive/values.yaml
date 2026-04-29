@@ -31,7 +31,7 @@ opensearchNode:
 logstash:
   image:
     repository: ghcr.io/perfsonar/logstash
-    tag: 5.2.0
+    tag: 5.3.0
     pullPolicy: Always
   logstashVersion: "8.17.3"
   opensearch_output_user: "pscheduler_logstash"
@@ -46,6 +46,29 @@ opensearchDashboards:
   service:
     type: ClusterIP
     port: 5601
+
+grafana:
+  enabled: true
+
+  image:
+    repository: ghcr.io/perfsonar/grafana
+    tag: "5.3.0"
+    pullPolicy: Always
+
+  opensearchVersion: "2.19.4"
+  plugins: "grafana-opensearch-datasource,esnet-matrix-panel"
+  disableSanitizeHtml: "true"
+  provisioningPath: "/usr/lib/perfsonar/grafana/provisioning"
+
+  server:
+    rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    serveFromSubPath: "true"
+
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+
 
 apache:
   enabled: true
@@ -71,6 +94,12 @@ apache:
     keyFile: "/usr/local/apache2/conf/tls/tls.key"
     days: 3650
 
+  grafana:
+    path: /grafana
+    serviceName: ""
+    servicePort: 3000
+    scheme: http
+
   opensearch:
     path: /opensearch
     serviceName: ""
@@ -87,5 +116,6 @@ apache:
     serviceName: ""
     servicePort: 5601
     scheme: http  
+
 
   extraApacheConfig: ""
