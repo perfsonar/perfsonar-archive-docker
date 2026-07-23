@@ -1,0 +1,137 @@
+{{- if .Values.logstash.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-logstash
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.logstash.service.type }}
+  selector:
+    {{- include "perfsonar-archive.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+  ports:
+    - name: api
+      port: {{ .Values.logstash.service.port }}
+      targetPort: api
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-logstash
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.logstash.replicas }}
+
+  selector:
+    matchLabels:
+      {{- include "perfsonar-archive.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: logstash
+
+  template:
+    metadata:
+      labels:
+        {{- include "perfsonar-archive.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: logstash
+
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      initContainers:
+        - name: wait-for-logstash-env
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+
+              until [ -s /usr/lib/perfsonar/logstash/sysconfig ]; do
+                echo "Waiting for /usr/lib/perfsonar/logstash/sysconfig"
+                sleep 5
+              done
+
+              echo "Logstash sysconfig is ready"
+              ls -la /usr/lib/perfsonar/logstash/sysconfig
+
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+
+
+        - name: wait-for-logstash-files
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+
+              until [ -f /usr/lib/perfsonar/logstash/.perfsonar-files-ready ]; do
+                echo "Waiting for perfSONAR Logstash files"
+                sleep 5
+              done
+
+              echo "perfSONAR Logstash files are ready"
+              find /usr/lib/perfsonar/logstash -maxdepth 3 -type f | head -50
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+
+      containers:
+        - name: logstash
+          image: "{{ .Values.logstash.image.repository }}:{{ .Values.logstash.image.tag }}"
+          imagePullPolicy: {{ .Values.logstash.image.pullPolicy }}
+
+          env:
+            {{- range $k, $v := .Values.logstash.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+
+            - name: opensearch_output_host
+              value: "https://{{ include "perfsonar-archive.fullname" . }}-opensearch:9200"
+
+          ports:
+            - name: api
+              containerPort: 11283
+
+
+          {{- with .Values.logstash.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+
+      volumes:
+        - name: perfsonar-logstash
+          persistentVolumeClaim:
+            claimName: {{ include "perfsonar-archive.fullname" . }}-logstash
+
+      {{- with .Values.logstash.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.logstash.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.logstash.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,18 +1,49 @@
-# Global settings
 global:
-  perfsonarVersion: "5.2.0"
+  imagePullSecrets: []
 
-opensearchNode:
+nameOverride: "perfsonar-archive"
+fullnameOverride: "perfsonar-archive"
+
+
+downloader:
   image:
-    repository: docker-proxy.grena.ge/perfsonar-archive
-    tag: 5.2
-    pullPolicy: Always
-  opensearchVersion: "2.19.4"
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/perfsonar-downloader
+    tag: "5.2.0"
+    pullPolicy: IfNotPresent
+
+  persistence:
+    archive:
+      size: 1Gi
+      accessMode: ReadWriteMany
+
+    logstash:
+      size: 1Gi
+      accessMode: ReadWriteMany
+
+    dashboards:
+      size: 1Gi
+      accessMode: ReadWriteMany
+
+opensearch:
+  enabled: true
+  image:
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/opensearch-node
+    tag: "5.2.0"
+    pullPolicy: IfNotPresent
   initialAdminPassword: "perfSONAR123!"
+  existingSecret: ""
+  existingSecretKey: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 9200
   persistence:
     enabled: true
     size: 10Gi
-    storageClassName: ""
+    accessModes: ["ReadWriteOnce"]
+  sharedConfig:
+    size: 1Gi
+    accessModes: ["ReadWriteMany"]
   affinity:
     podAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -29,93 +60,104 @@ opensearchNode:
           topologyKey: kubernetes.io/hostname
 
 logstash:
+  enabled: true
   image:
     repository: ghcr.io/perfsonar/logstash
-    tag: 5.3.0
-    pullPolicy: Always
-  logstashVersion: "8.17.3"
-  opensearch_output_user: "pscheduler_logstash"
-  opensearch_output_password: ""
+    tag: "5.3.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 11283
+  env:
+    MONITORING_ENABLED: "false"
+    LOG_LEVEL: info
+    RATE_CACHE_MAX_ENTRIES: "10000000"
+    RATE_CACHE_EXPIRES: "600"
+    opensearch_output_user: pscheduler_logstash
+    opensearch_output_password: ""
+
+  sharedEnv:
+    size: 1Gi
+    accessModes: ["ReadWriteMany"]
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - perfsonar
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - myRelease
+          topologyKey: kubernetes.io/hostname
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
 
 opensearchDashboards:
+  enabled: true
   image:
-    repository: docker-proxy.grena.ge/perfsonar-dashboards
-    tag: 5.2
-    pullPolicy: Always
-  opensearchVersion: "2.19.4"
+    repository: ghcr.io/perfsonar/perfsonar-archive-docker/opensearch-dashboards
+    tag: "5.2.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
   service:
     type: ClusterIP
     port: 5601
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
 
 grafana:
   enabled: true
-
   image:
     repository: ghcr.io/perfsonar/grafana
     tag: "5.3.0"
-    pullPolicy: Always
-
-  opensearchVersion: "2.19.4"
-  plugins: "grafana-opensearch-datasource,esnet-matrix-panel"
-  disableSanitizeHtml: "true"
-  provisioningPath: "/usr/lib/perfsonar/grafana/provisioning"
-
-  server:
-    rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
-    serveFromSubPath: "true"
-
+    pullPolicy: IfNotPresent
+  replicas: 1
   service:
     type: ClusterIP
     port: 3000
-    targetPort: 3000
-
+  plugins: grafana-opensearch-datasource,esnet-matrix-panel
+  rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+  serveFromSubPath: "true"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
 
 apache:
   enabled: true
-
   image:
     repository: httpd
     tag: "2.4"
     pullPolicy: IfNotPresent
-
-  initImage:
-    repository: alpine
-    tag: "3.20"
-    pullPolicy: IfNotPresent
-
   service:
     type: LoadBalancer
     port: 8443
-    targetPort: 8443
-
   tls:
     enabled: true
-    certFile: "/usr/local/apache2/conf/tls/tls.crt"
-    keyFile: "/usr/local/apache2/conf/tls/tls.key"
-    days: 3650
+    existingSecret: ""
+    certManager:
+      enabled: false
+      issuerRef:
+        name: ""
+        kind: ClusterIssuer
+  resources: {}
 
-  grafana:
-    path: /grafana
-    serviceName: ""
-    servicePort: 3000
-    scheme: http
-
-  opensearch:
-    path: /opensearch
-    serviceName: ""
-    servicePort: 9200
-    scheme: https
-
-  logstash:
-    path: /logstash
-    serviceName: ""
-    servicePort: 11283
-    scheme: http
-
-  dashboards:
-    serviceName: ""
-    servicePort: 5601
-    scheme: http  
-
-
-  extraApacheConfig: ""

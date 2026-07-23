@@ -1,0 +1,94 @@
+{{- if and .Values.opensearch.enabled .Values.opensearch.sharedConfig }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-opensearch-config
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opensearch
+spec:
+  accessModes:
+    {{- toYaml .Values.opensearch.sharedConfig.accessModes | nindent 4 }}
+  {{- with .Values.opensearch.sharedConfig.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.opensearch.sharedConfig.size }}
+{{- end }}
+
+{{- if and .Values.logstash.enabled .Values.logstash.sharedEnv }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-logstash-env
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+spec:
+  accessModes:
+    {{- toYaml .Values.logstash.sharedEnv.accessModes | nindent 4 }}
+  {{- with .Values.logstash.sharedEnv.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.logstash.sharedEnv.size }}
+{{- end }}
+
+{{- if .Values.downloader }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-archive
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: downloader
+spec:
+  accessModes:
+    - {{ .Values.downloader.persistence.archive.accessMode }}
+  {{- with .Values.downloader.persistence.archive.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.downloader.persistence.archive.size }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-logstash
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: downloader
+spec:
+  accessModes:
+    - {{ .Values.downloader.persistence.logstash.accessMode }}
+  {{- with .Values.downloader.persistence.logstash.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.downloader.persistence.logstash.size }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-dashboards
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: downloader
+spec:
+  accessModes:
+    - {{ .Values.downloader.persistence.dashboards.accessMode }}
+  {{- with .Values.downloader.persistence.dashboards.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.downloader.persistence.dashboards.size }}
+{{- end }}

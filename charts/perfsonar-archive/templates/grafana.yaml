@@ -1,0 +1,59 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-grafana
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.grafana.service.type }}
+  selector:
+    {{- include "perfsonar-archive.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+  ports:
+    - name: http
+      port: {{ .Values.grafana.service.port }}
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-grafana
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.grafana.replicas }}
+  selector:
+    matchLabels:
+      {{- include "perfsonar-archive.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: grafana
+  template:
+    metadata:
+      labels:
+        {{- include "perfsonar-archive.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.grafana.image.pullPolicy }}
+          env:
+            - name: OPENSEARCH_URL
+              value: "https://{{ include "perfsonar-archive.fullname" . }}-opensearch:9200"
+            - name: OPENSEARCH_VERSION
+              value: "2.19.4"
+            - name: GF_INSTALL_PLUGINS
+              value: {{ .Values.grafana.plugins | quote }}
+            - name: GF_PANELS_DISABLE_SANITIZE_HTML
+              value: "true"
+            - name: GF_PATHS_PROVISIONING
+              value: "/usr/lib/perfsonar/grafana/provisioning"
+            - name: GF_SERVER_ROOT_URL
+              value: {{ .Values.grafana.rootUrl | quote }}
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: {{ .Values.grafana.serveFromSubPath | quote }}
+          ports:
+            - name: http
+              containerPort: 3000
+          resources: {{ toYaml .Values.grafana.resources | nindent 12 }}
+{{- end }}

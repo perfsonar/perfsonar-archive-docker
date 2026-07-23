@@ -1,0 +1,115 @@
+{{- if .Values.apache.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-apache
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+data:
+  httpd.conf: |
+    ServerName localhost
+    Listen 8443
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so
+    LoadModule ssl_module modules/mod_ssl.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule mime_module modules/mod_mime.so
+    LoadModule dir_module modules/mod_dir.so
+    User daemon
+    Group daemon
+    ErrorLog /proc/self/fd/2
+    LogFormat "%h %l %u %t \"%r\" %>s %b" combined
+    CustomLog /proc/self/fd/1 combined
+    SSLEngine on
+    SSLCertificateFile /usr/local/apache2/conf/tls/tls.crt
+    SSLCertificateKeyFile /usr/local/apache2/conf/tls/tls.key
+    SSLProxyEngine on
+    SSLProxyVerify none
+    SSLProxyCheckPeerName off
+    ProxyPreserveHost On
+    ProxyPass /grafana/ http://{{ include "perfsonar-archive.fullname" . }}-grafana:3000/grafana/
+    ProxyPassReverse /grafana/ http://{{ include "perfsonar-archive.fullname" . }}-grafana:3000/grafana/
+    ProxyPass /opensearch/ https://{{ include "perfsonar-archive.fullname" . }}-opensearch:9200/
+    ProxyPassReverse /opensearch/ https://{{ include "perfsonar-archive.fullname" . }}-opensearch:9200/
+    ProxyPass /logstash/ http://{{ include "perfsonar-archive.fullname" . }}-logstash:11283/
+    ProxyPassReverse /logstash/ http://{{ include "perfsonar-archive.fullname" . }}-logstash:11283/
+    ProxyPass / http://{{ include "perfsonar-archive.fullname" . }}-dashboards:5601/
+    ProxyPassReverse / http://{{ include "perfsonar-archive.fullname" . }}-dashboards:5601/
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-apache
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.apache.service.type }}
+  selector:
+    {{- include "perfsonar-archive.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: apache
+  ports:
+    - name: https
+      port: {{ .Values.apache.service.port }}
+      targetPort: https
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "perfsonar-archive.fullname" . }}-apache
+  labels:
+    {{- include "perfsonar-archive.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "perfsonar-archive.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: apache
+  template:
+    metadata:
+      labels:
+        {{- include "perfsonar-archive.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apache
+    spec:
+      {{- if and .Values.apache.tls.enabled (not .Values.apache.tls.existingSecret) }}
+      initContainers:
+        - name: generate-self-signed-cert
+          image: alpine:3.20
+          command: ["/bin/sh", "-c"]
+          args:
+            - apk add --no-cache openssl && openssl req -x509 -nodes -newkey rsa:2048 -days 3650 -subj '/CN=perfsonar-archive' -keyout /tls/tls.key -out /tls/tls.crt
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+      {{- end }}
+      containers:
+        - name: apache
+          image: "{{ .Values.apache.image.repository }}:{{ .Values.apache.image.tag }}"
+          imagePullPolicy: {{ .Values.apache.image.pullPolicy }}
+          ports:
+            - name: https
+              containerPort: 8443
+          resources: {{ toYaml .Values.apache.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+            - name: tls
+              mountPath: /usr/local/apache2/conf/tls
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "perfsonar-archive.fullname" . }}-apache
+        - name: tls
+          {{- if .Values.apache.tls.existingSecret }}
+          secret:
+            secretName: {{ .Values.apache.tls.existingSecret }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
