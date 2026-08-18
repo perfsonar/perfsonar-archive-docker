@@ -21,7 +21,8 @@ services:
         hard: 65536
     volumes:
       - opensearch-data:/usr/share/opensearch/data
-      - perfsonar-opensearch:/etc/perfsonar/opensearch
+      - opensearch-config:/usr/share/opensearch/config
+      - perfsonar-config:/etc/perfsonar
       - logstash-env:/env
     ports:
       - "9200:9200"
@@ -75,7 +76,7 @@ services:
       OPENSEARCH_HOSTS: '["https://opensearch-node:9200"]' # must be a string with no spaces when specified as an environment variable
       SERVER_HOST: "0.0.0.0"
     volumes:
-      - perfsonar-opensearch:/etc/perfsonar/opensearch/
+      - perfsonar-config:/etc/perfsonar
     ports:
       - 5601:5601
     expose:
@@ -107,5 +108,6 @@ services:
 
 volumes:
   opensearch-data:
-  perfsonar-opensearch:
+  opensearch-config:
+  perfsonar-config:
   logstash-env:
