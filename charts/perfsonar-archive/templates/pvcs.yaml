@@ -17,26 +17,6 @@ spec:
       storage: {{ .Values.opensearch.sharedConfig.size }}
 {{- end }}
 
-{{- if and .Values.logstash.enabled .Values.logstash.sharedEnv }}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "perfsonar-archive.fullname" . }}-logstash-env
-  labels:
-    {{- include "perfsonar-archive.labels" . | nindent 4 }}
-    app.kubernetes.io/component: logstash
-spec:
-  accessModes:
-    {{- toYaml .Values.logstash.sharedEnv.accessModes | nindent 4 }}
-  {{- with .Values.logstash.sharedEnv.storageClassName }}
-  storageClassName: {{ . | quote }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.logstash.sharedEnv.size }}
-{{- end }}
-
 {{- if .Values.downloader }}
 ---
 apiVersion: v1

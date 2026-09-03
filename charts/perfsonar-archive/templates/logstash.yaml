@@ -43,29 +43,6 @@ spec:
       {{- end }}
 
       initContainers:
-        - name: wait-for-logstash-env
-          image: busybox:1.36
-          imagePullPolicy: IfNotPresent
-          command:
-            - /bin/sh
-            - -c
-          args:
-            - |
-              set -eu
-
-              until [ -s /usr/lib/perfsonar/logstash/sysconfig ]; do
-                echo "Waiting for /usr/lib/perfsonar/logstash/sysconfig"
-                sleep 5
-              done
-
-              echo "Logstash sysconfig is ready"
-              ls -la /usr/lib/perfsonar/logstash/sysconfig
-
-          volumeMounts:
-            - name: perfsonar-logstash
-              mountPath: /usr/lib/perfsonar/logstash
-
-
         - name: wait-for-logstash-files
           image: busybox:1.36
           imagePullPolicy: IfNotPresent
@@ -77,12 +54,68 @@ spec:
               set -eu
 
               until [ -f /usr/lib/perfsonar/logstash/.perfsonar-files-ready ]; do
-                echo "Waiting for perfSONAR Logstash files"
+                echo "Waiting for perfSONAR Logstash files..."
                 sleep 5
               done
 
-              echo "perfSONAR Logstash files are ready"
-              find /usr/lib/perfsonar/logstash -maxdepth 3 -type f | head -50
+              echo "perfSONAR Logstash files are ready."
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+
+        - name: wait-for-logstash-sysconfig
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+
+              echo "Waiting for perfSONAR-generated Logstash credentials..."
+
+              until [ -s /usr/lib/perfsonar/logstash/sysconfig ] && \
+                    grep -q '^export opensearch_output_user=' /usr/lib/perfsonar/logstash/sysconfig && \
+                    grep -q '^export opensearch_output_password=' /usr/lib/perfsonar/logstash/sysconfig; do
+                sleep 5
+              done
+
+              echo "Logstash sysconfig is ready."
+          volumeMounts:
+            - name: perfsonar-logstash
+              mountPath: /usr/lib/perfsonar/logstash
+
+        - name: configure-logstash-kubernetes
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+
+              INPUT_FILE="/usr/lib/perfsonar/logstash/pipeline/01-inputs.conf"
+              SYS_CONFIG="/usr/lib/perfsonar/logstash/sysconfig"
+
+              test -f "${INPUT_FILE}"
+              test -s "${SYS_CONFIG}"
+
+              echo "Applying Kubernetes-specific Logstash configuration..."
+
+              # Allow the Kubernetes Service/Ingress to reach the Logstash HTTP input.
+              sed -i 's/host => "localhost"/host => "0.0.0.0"/g' "${INPUT_FILE}"
+
+              # The perfSONAR archive entrypoint writes the Docker Compose hostname
+              # opensearch-node to sysconfig. Replace it with this release's Service.
+              sed -i \
+                's|https://opensearch-node:9200|https://{{ include "perfsonar-archive.fullname" . }}-opensearch:9200|g' \
+                "${SYS_CONFIG}"
+
+              echo "Logstash Kubernetes configuration applied."
+              grep 'host =>' "${INPUT_FILE}" || true
+              grep '^export opensearch_output_host=' "${SYS_CONFIG}" || true
           volumeMounts:
             - name: perfsonar-logstash
               mountPath: /usr/lib/perfsonar/logstash
@@ -98,13 +131,9 @@ spec:
               value: {{ $v | quote }}
             {{- end }}
 
-            - name: opensearch_output_host
-              value: "https://{{ include "perfsonar-archive.fullname" . }}-opensearch:9200"
-
           ports:
             - name: api
               containerPort: 11283
-
 
           {{- with .Values.logstash.resources }}
           resources:

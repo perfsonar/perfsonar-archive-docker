@@ -30,9 +30,14 @@ opensearch:
     repository: ghcr.io/perfsonar/perfsonar-archive-docker/opensearch-node
     tag: "5.2.0"
     pullPolicy: IfNotPresent
+
+  # Passed to the container as OPENSEARCH_INITIAL_ADMIN_PASSWORD.
+  # It is only the OpenSearch bootstrap password. perfSONAR's
+  # pselastic_secure_pre.sh manages/generates the archive credentials later.
   initialAdminPassword: "perfSONAR123!"
   existingSecret: ""
   existingSecretKey: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+
   replicas: 1
   service:
     type: ClusterIP
@@ -74,12 +79,7 @@ logstash:
     LOG_LEVEL: info
     RATE_CACHE_MAX_ENTRIES: "10000000"
     RATE_CACHE_EXPIRES: "600"
-    opensearch_output_user: pscheduler_logstash
-    opensearch_output_password: ""
 
-  sharedEnv:
-    size: 1Gi
-    accessModes: ["ReadWriteMany"]
   affinity:
     podAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -160,4 +160,3 @@ apache:
         name: ""
         kind: ClusterIssuer
   resources: {}
-
