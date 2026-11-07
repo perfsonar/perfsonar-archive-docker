@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: basic dashboards grafana full down logs ps
+.PHONY: basic dashboards grafana full down logs ps password
 
 # Mandatory services only
 basic:
@@ -28,3 +28,6 @@ logs:
 
 ps:
 	$(COMPOSE) ps
+
+password:
+	$(COMPOSE) exec opensearch-node sh -c "grep -w admin /etc/perfsonar/opensearch/auth_setup.out | awk '{print \$$2}'"

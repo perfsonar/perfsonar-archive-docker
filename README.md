@@ -1,61 +1,32 @@
 # perfSONAR Archive Docker
 
-This project defines a containerized deployment of the perfSONAR archive using Docker Compose. It includes:
-
-- A one-time downloader for perfSONAR components
-
-- OpenSearch node for data storage and search
-
-- Logstash for data processing
-
-- OpenSearch Dashboards for visualization
+This project defines a containerized deployment of the perfSONAR archive using Docker Compose. It leverages official GitHub Container Registry (ghcr.io) images.
 
 ## 📦  Services Overview
 
-### perfsonar-downloader
-
-This container is responsible for preparing the installation environment for other components. It runs only once, clones the perfSONAR Git repositories at the specified **PERFSONAR_VERSION** and makes them available for subsequent containers.
-
-### opensearch-node
-
-Main OpenSearch container, running with custom configuration and required security setup.
-
-### logstash
-
-Ingests and transforms perfSONAR metrics, sending data to OpenSearch.
-
-### opensearch-dashboards
-
-Web-based dashboard frontend for visualizing data in OpenSearch.
-
-### Custom Entrypoints and perfSONAR Scripts
-
-Each container (**opensearch-node**, **logstash**, **opensearch-dashboards**) is built with a custom image that includes a custom entrypoint script. On the first run, the entrypoint executes perfSONAR setup scripts stored in the shared volume.
+| Service | Description |
+|---|---|
+| **opensearch-node** | Main OpenSearch container, running with custom configuration and required security setup. |
+| **logstash** | Ingests and transforms perfSONAR metrics, sending data to OpenSearch. |
+| **opensearch-dashboards** | (Optional) Web-based dashboard frontend for visualizing data in OpenSearch. |
+| **perfsonar-grafana** | (Optional) Grafana visualization with preloaded perfSONAR dashboards. |
 
 ## 🚀 How to Deploy
 
-### 1. Clone the repository
+The perfsonar-archive stack can be started in different flavors using the provided Makefile:
 
-```bash
-git clone https://github.com/perfsonar/perfsonar-archive-docker
-cd perfsonar-archive-docker
-```
+| Command | Services |
+|---|---|
+| `make basic` | OpenSearch + Logstash |
+| `make dashboards` | Basic + OpenSearch Dashboards |
+| `make grafana` | Basic + Grafana |
+| `make full` | All services |
 
-### 2. Set environment variables
+Start the desired deployment with `make <flavor>`.
 
-```env
-OPENSEARCH_VERSION=2.18.0
-LOGSTASH_VERSION=8.11.0
-PERFSONAR_VERSION=5.2.0
-```
+To check running containers, use `make ps`. To follow logs, use `make logs`.
 
-### 3. Build and run the stack
-
-```bash
-docker compose up --build
-```
-
-The first time you run, the perfsonar-downloader will populate the shared volumes. After that, the OpenSearch stack will start using those resources.
+Stop and remove all containers with `make down`. Persistent data stored in Docker volumes is preserved.
 
 ## 📊 Accessing OpenSearch Dashboards
 
@@ -69,21 +40,4 @@ To log into the dashboard, you'll need the **admin** credentials generated durin
 
 🔐 You can retrieve the **admin** password by running the command below:
 
-```bash
-docker compose exec opensearch-node grep -w admin /usr/lib/perfsonar/archive/auth_setup.out
-```
-
-
-## 🧼 Tear Down
-
-To stop and remove containers:
-
-```bash
-docker compose down
-```
-
-To remove all volumes (⚠️ includes data loss):
-
-```bash
-docker compose down -v
-```
+`make password`
