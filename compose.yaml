@@ -24,16 +24,12 @@ services:
       - opensearch-config:/usr/share/opensearch/config
       - perfsonar-config:/etc/perfsonar
       - logstash-env:/env
-    ports:
-      - "9200:9200"
-      - "9600:9600" # required for Performance Analyzer
     healthcheck:
-      test: [ "CMD-SHELL", "curl --insecure --silent --fail https://localhost:9200/_cluster/health || exit 1" ]
+      test: ["CMD-SHELL", "curl --insecure --silent --fail https://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-    
 
   perfsonar-logstash:
     image: ghcr.io/perfsonar/logstash:5.3.0
@@ -58,10 +54,6 @@ services:
         max-file: "10"
     volumes:
       - logstash-env:/env
-    ports:
-      - 11283:11283
-    expose:
-      - "11283"
     depends_on:
       opensearch-node:
         condition: service_healthy
@@ -73,14 +65,10 @@ services:
     restart: always
     platform: linux/amd64
     environment:
-      OPENSEARCH_HOSTS: '["https://opensearch-node:9200"]' # must be a string with no spaces when specified as an environment variable
+      OPENSEARCH_HOSTS: '["https://opensearch-node:9200"]'
       SERVER_HOST: "0.0.0.0"
     volumes:
       - perfsonar-config:/etc/perfsonar
-    ports:
-      - 5601:5601
-    expose:
-      - "5601"
     depends_on:
       opensearch-node:
         condition: service_healthy
@@ -91,19 +79,14 @@ services:
     container_name: perfsonar-grafana
     restart: always
     environment:
-      - OPENSEARCH_URL=https://opensearch-node:9200
-      - OPENSEARCH_VERSION=3.6.0
-      - GF_INSTALL_PLUGINS=grafana-opensearch-datasource,esnet-matrix-panel
-      - GF_PANELS_DISABLE_SANITIZE_HTML=true
-      - GF_PATHS_PROVISIONING=/usr/lib/perfsonar/grafana/provisioning
-      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/grafana/
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      OPENSEARCH_URL: "https://opensearch-node:9200"
+      OPENSEARCH_VERSION: "3.6.0"
+      GF_INSTALL_PLUGINS: "grafana-opensearch-datasource,esnet-matrix-panel"
+      GF_PANELS_DISABLE_SANITIZE_HTML: true
+      GF_PATHS_PROVISIONING: "/usr/lib/perfsonar/grafana/provisioning"
+      GF_SERVER_SERVE_FROM_SUB_PATH: true
     volumes:
       - grafana-data:/var/lib/grafana
-    ports:
-       - 3000:3000
-    expose:
-      - "3000"
     depends_on:
       opensearch-node:
         condition: service_healthy

@@ -1,0 +1,19 @@
+services:
+  perfsonar-grafana:
+    environment:
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
+
+  apache-proxy:
+    build:
+      context: ./apache-proxy
+      dockerfile: Dockerfile
+    image: ghcr.io/perfsonar/apache-proxy:5.3.0
+    container_name: perfsonar-apache-proxy
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - perfsonar-config:/etc/perfsonar
+    depends_on:
+      opensearch-node:
+        condition: service_healthy

@@ -1,0 +1,19 @@
+services:
+  opensearch-node:
+    ports:
+      - "9200:9200"
+      - "9600:9600" # required for Performance Analyzer
+
+  perfsonar-logstash:
+    ports:
+      - "11283:11283"
+
+  opensearch-dashboards:
+    ports:
+      - "5601:5601"
+
+  perfsonar-grafana:
+    environment:
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    ports:
+      - "3000:3000"
